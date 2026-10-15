@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pressure + Fronts</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+html,body,#map{height:100%;margin:0;background:#111}
+body{font:13px system-ui,sans-serif}
+.panel{position:absolute;z-index:1000;top:10px;right:10px;width:250px;max-height:calc(100% - 90px);overflow:auto;background:#000d;color:#fff;padding:10px 12px;border-radius:10px}
+.panel label{display:block;cursor:pointer;margin:2px 0}
+.panel h4{margin:10px 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;opacity:.7}
+.panel details{margin-top:8px}.panel summary{cursor:pointer;font-weight:600}
+.panel p{margin:6px 0;line-height:1.35}
+#legend{height:10px;margin:6px 0 2px;border-radius:5px}
+.row{display:flex;justify-content:space-between;font-size:11px}
+.bar{position:absolute;z-index:1000;left:10px;right:280px;bottom:22px;background:#000d;color:#fff;padding:8px 12px;border-radius:10px;display:flex;gap:10px;align-items:center}
+.bar input{flex:1}.bar button,.panel button{background:#2b6cff;color:#fff;border:0;border-radius:6px;padding:5px 10px;cursor:pointer;font:inherit}
+#when{min-width:210px;text-align:right}#when small{display:block;opacity:.65;font-size:11px}
+table td,table th{padding:2px 3px;text-align:right;border-bottom:1px solid #fff2}table td:first-child,table th:first-child{text-align:left}
+#qbox button{display:block;width:100%;text-align:left;margin:4px 0;background:#333}
+#qbox .ok{color:#7dffa0}#qbox .no{color:#ff8a8a}
+@media(max-width:700px){.bar{right:10px}.panel{width:200px;font-size:12px}#when{min-width:120px}}
+</style></head><body>
+<div id="map"></div>
+
+<div class="panel">
+  <strong>Pressure &amp; Fronts</strong> <span id="st" style="opacity:.6;font-size:11px">loading…</span>
+  <div style="margin:6px 0"><button data-view="na">N. America</button> <button data-view="nh">Northern Hemisphere</button></div>
+  <h4>Shading</h4>
+  <select id="shade" style="width:100%">
+    <option value="p">Surface pressure</option>
+    <option value="pr">6-hour precipitation</option>
+    <option value="w5">Jet stream (500 mb wind speed)</option>
+    <option value="none">None</option>
+  </select>
+  <label><input type="checkbox" id="flip" checked> Low = warm, High = cool</label>
+  <h4>Lines &amp; symbols</h4>
+  <label><input type="checkbox" id="iso" checked> Isobars (hPa)</label>
+  <label><input type="checkbox" id="h5l"> 500 mb height lines (dam)</label>
+  <label><input type="checkbox" id="hl" checked> H / L centers</label>
+  <label><input type="checkbox" id="wind"> Wind arrows (estimated)</label>
+  <label><input type="checkbox" id="fr" checked> Fronts (NOAA WPC)</label>
+  <label><input type="checkbox" id="stt" checked> State borders</label>
+  <label><input type="checkbox" id="cap" checked> Cities</label>
+  <label><input type="checkbox" id="ctemp"> Show city temperatures</label>
+  <div id="legend"></div><div class="row"><span id="l0"></span><span id="l1"></span><span id="l2"></span></div>
+  <div style="font-size:11px;margin-top:6px;line-height:1.5">
+    <span style="color:#3b82ff">▲</span> cold front &nbsp;<span style="color:#ff3b3b">●</span> warm front<br>
+    <span style="color:#b043ff">▲●</span> occluded &nbsp;<span style="color:#3b82ff">▲</span><span style="color:#ff3b3b">●</span> stationary<br>
+    <span style="color:#d9a066">- - -</span> trough
+  </div>
+  <p id="frnote" style="font-size:11px;opacity:.7"></p><p id="note2" style="font-size:11px;opacity:.7"></p>
+  <details><summary>How to read this map</summary>
+    <p><b>Isobars</b> connect points with equal pressure. Lines close together = big pressure change over a short distance = <b>strong wind</b>.</p>
+    <p><b>Wind</b> starts blowing from high toward low pressure, but Earth's rotation bends it: <b>clockwise &amp; outward around a High, counterclockwise &amp; inward around a Low</b> (Northern Hemisphere). Friction at the ground turns it about 30° toward the Low.</p>
+    <p><b>Highs</b>: air sinks → clear, calm. <b>Lows</b>: air rises → clouds and precipitation.</p>
+    <p><b>Fronts</b> are boundaries between air masses. The symbols point the way the front is moving. Cold fronts: sharp temperature drop, showers or storms, wind shift.</p>
+    <p><b>Jet stream</b>: the fast river of air near 18,000 ft (500 mb). Surface Lows and fronts tend to form and travel along it, and the height lines show its troughs (dips) and ridges (bulges).</p>
+    <p><b>Precipitation</b> shows how much falls in each 6-hour period. Compare it with the Lows and fronts.</p>
+    <p><b>Click the map</b> for pressure and wind at that spot, or click a city dot for its forecast.</p>
+    <p style="opacity:.7">Wind arrows are <i>estimated</i> from the pressure pattern, not measured. Pressure is NOAA GFS model data; fronts are forecasters' hand analysis.</p>
+  </details>
+  <details id="ctbl"><summary>City readouts (nearest to map center)</summary>
+    <table id="ctab" style="width:100%;font-size:11px;border-collapse:collapse"></table>
+  </details>
+  <details><summary>Quiz me</summary>
+    <p><button id="qgo">New question</button> <span id="score"></span></p>
+    <div id="qbox"></div>
+  </details>
+</div>
+
+<div class="bar">
+  <button id="play">▶ Play</button>
+  <input type="range" id="slider" min="0" max="12" value="0" step="1">
+  <div id="when">…</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const $=id=>document.getElementById(id), on=id=>$(id).checked;
+const map=L.map('map',{center:[39.99,-99.77],zoom:5,minZoom:2,zoomControl:false,maxBounds:[[-5,-180],[88,180]],maxBoundsViscosity:1});
+L.control.zoom({position:'topleft'}).addTo(map);
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+  {maxZoom:16,attribution:'Esri · states: PublicaMundi · weather data: NOAA GFS · fronts: NOAA WPC'}).addTo(map);
+
+// ---- color ramps. Each returns [r,g,b,a] or null (transparent)
+const ramp=(stops,v)=>{ // stops: [[value,[r,g,b]],...]
+  if(v<stops[0][0])return null;
+  for(let i=1;i<stops.length;i++)if(v<=stops[i][0]){const[a,ca]=stops[i-1],[b,cb]=stops[i],f=(v-a)/(b-a);return ca.map((c,k)=>c+(cb[k]-c)*f);}
+  return stops.at(-1)[1];
+};
+const PCOL=[[980,[40,80,220]],[1000,[90,170,240]],[1013,[235,235,235]],[1030,[250,170,60]],[1045,[210,40,40]]];
+const pressureColor=p=>{const c=ramp(on('flip')?PCOL.map(([v],i)=>[v,PCOL[PCOL.length-1-i][1]]):PCOL,Math.max(980,p));return [...c,150];};
+const RCOL=[[0.3,[140,215,150]],[1,[60,175,90]],[3,[30,130,60]],[6,[240,220,60]],[12,[245,150,40]],[25,[220,50,40]],[50,[200,40,200]]];
+const JCOL=[[30,[150,200,255]],[50,[90,230,200]],[70,[120,235,100]],[90,[250,230,70]],[110,[250,140,50]],[130,[230,50,50]],[150,[220,60,220]]];
+const MODES={ // field key, color fn, legend
+  p:{f:'p',col:pressureColor,stops:PCOL,l:['980','1013','1045 hPa']},
+  pr:{f:'pr',col:v=>{const c=ramp(RCOL,v);return c&&[...c,Math.min(190,(v-0.3)*600)];},stops:RCOL,l:['0.3 mm','6','50+ mm / 6 h']}, // fades in so edges aren't blocky
+  w5:{f:'w5',col:v=>{const c=ramp(JCOL,v);return c&&[...c,170];},stops:JCOL,l:['30 kt','90','150+ kt']},
+};
+function legend(){
+  const m=MODES[$('shade').value];$('legend').style.visibility=m?'visible':'hidden';
+  if(!m){['l0','l1','l2'].forEach(i=>$(i).textContent='');return;}
+  const lo=m.stops[0][0],hi=m.stops.at(-1)[0];
+  $('legend').style.background='linear-gradient(90deg,'+m.stops.map(([v])=>{const c=m.col(v);return `rgb(${(c||m.stops[0][1]).slice(0,3).map(Math.round)})`}).join(',')+')';
+  $('l0').textContent=m.l[0];$('l1').textContent=m.l[1];$('l2').textContent=m.l[2];
+}
+
+// ---- data: data/pressure.json from gfs_to_json.py. DATA.p/pr/h5/w5[i] = 2D grid (46 lat x 181 lon, 2°) at cycle+hours[i]
+let DATA,lats=[],lons=[],LAT0,LON0,D,cur=0,cache=[],fronts={};
+const fld=k=>DATA[k][cur];
+function sample(f,lat,lon){ // bilinear
+  const y=(lat-LAT0)/D,x=(lon-LON0)/D;if(y<0||x<0||y>=lats.length-1||x>=lons.length-1)return NaN;
+  const i=Math.floor(y),j=Math.floor(x),fy=y-i,fx=x-j;
+  return (f[i][j]*(1-fx)+f[i][j+1]*fx)*(1-fy)+(f[i+1][j]*(1-fx)+f[i+1][j+1]*fx)*fy;
+}
+function cr(p0,p1,p2,p3,t){return p1+.5*t*(p2-p0+t*(2*p0-5*p1+4*p2-p3+t*(3*(p1-p2)+p3-p0)));}
+function cubic(f,lat,lon){ // Catmull-Rom: smooth enough for contours and gradients
+  const y=(lat-LAT0)/D,x=(lon-LON0)/D,i=Math.floor(y),j=Math.floor(x),fy=y-i,fx=x-j;
+  const G=(a,b)=>f[Math.max(0,Math.min(lats.length-1,a))][Math.max(0,Math.min(lons.length-1,b))];
+  const row=a=>cr(G(a,j-1),G(a,j),G(a,j+1),G(a,j+2),fx);
+  return cr(row(i-1),row(i),row(i+1),row(i+2),fy);
+}
+const range=(a,b,s)=>{const o=[];for(let v=a;v<=b;v+=s)o.push(v);return o;};
+const PLEV=range(948,1068,4),HLEV=range(4800,6000,60);
+function contour(f,levels){ // marching squares on a 1° resampling of the cubic surface
+  const S=1,LAT1=lats.at(-1),LON1=lons.at(-1),ny=Math.round((LAT1-LAT0)/S),nx=Math.round((LON1-LON0)/S);
+  const F=[];for(let a=0;a<=ny;a++){F.push([]);for(let b=0;b<=nx;b++)F[a].push(cubic(f,Math.min(LAT1-1e-6,LAT0+a*S),Math.min(LON1-1e-6,LON0+b*S)));}
+  const segs={};levels.forEach(L=>segs[L]=[]);
+  for(let a=0;a<ny;a++)for(let b=0;b<nx;b++){
+    const v=[F[a][b],F[a][b+1],F[a+1][b+1],F[a+1][b]],pt=[[0,1],[1,2],[2,3],[3,0]],cx=[[0,0],[1,0],[1,1],[0,1]];
+    const lo=Math.min(...v),hi=Math.max(...v);
+    for(const L of levels){
+      if(L<lo||L>hi)continue;const c=[];
+      pt.forEach(([i,j])=>{if((v[i]-L)*(v[j]-L)<0){const t=(L-v[i])/(v[j]-v[i]);
+        c.push([LAT0+(a+cx[i][1]+(cx[j][1]-cx[i][1])*t)*S,LON0+(b+cx[i][0]+(cx[j][0]-cx[i][0])*t)*S]);}});
+      if(c.length===2)segs[L].push([...c[0],...c[1]]);
+      else if(c.length===4)segs[L].push([...c[0],...c[3]],[...c[1],...c[2]]);
+    }
+  }
+  return segs;
+}
+function extrema(f){ // local max/min within ~10°; near the data edge compare only in-bounds cells and skip the outer 3
+  const R=Math.round(10/D),E=3,out=[];
+  for(let i=E;i<lats.length-E;i++)for(let j=E;j<lons.length-E;j++){
+    const v=f[i][j];let hi=true,lo=true;
+    for(let a=Math.max(-R,-i);a<=Math.min(R,lats.length-1-i)&&(hi||lo);a++)for(let b=Math.max(-R,-j);b<=Math.min(R,lons.length-1-j);b++){
+      if(!a&&!b)continue;const n=f[i+a][j+b];
+      const tie=n===v&&(a<0||(a===0&&b<0)); // equal neighbors: only the first one in scan order counts
+      if(n>v||tie)hi=false;if(n<v||tie)lo=false;}
+    if(hi||lo)out.push([lats[i],lons[j],v,hi?'H':'L']);
+  }
+  return out;
+}
+const R_E=6371e3,RHO=1.2,OMEGA=7.292e-5;
+function wind(lat,lon){ // geostrophic wind from the pressure gradient, then friction: 0.6x speed, turned 30° toward low
+  const P=fld('p');if(Math.abs(lat)<15||isNaN(sample(P,lat,lon)))return null; // near the equator the method breaks down
+  const h=.5,k=Math.PI/180,dpdx=(cubic(P,lat,lon+h)-cubic(P,lat,lon-h))*100/(2*h*k*R_E*Math.cos(lat*k)),
+        dpdy=(cubic(P,lat+h,lon)-cubic(P,lat-h,lon))*100/(2*h*k*R_E),f=2*OMEGA*Math.sin(lat*k);
+  const ug=-dpdy/(RHO*f),vg=dpdx/(RHO*f),th=30*k,s=.6;
+  return {u:s*(ug*Math.cos(th)-vg*Math.sin(th)),v:s*(ug*Math.sin(th)+vg*Math.cos(th))};
+}
+const compass=(u,v)=>['N','NE','E','SE','S','SW','W','NW'][Math.round((((Math.atan2(-u,-v)*180/Math.PI)+360)%360)/45)%8];
+const F_=c=>c*9/5+32;
+
+function setFrame(i){
+  cur=i;
+  if(!cache[i])cache[i]={segs:contour(DATA.p[i],PLEV),ex:extrema(DATA.p[i])};
+  if(on('h5l')&&!cache[i].h5)cache[i].h5=contour(DATA.h5[i],HLEV);
+  const t=new Date(Date.parse(DATA.cycle)+DATA.hours[i]*3600e3);
+  $('when').innerHTML=t.toLocaleString([],{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'})+
+    `<small>${DATA.hours[i]===0?'model analysis':'forecast +'+DATA.hours[i]+' h'} · ${t.toISOString().slice(0,16).replace('T',' ')} UTC</small>`;
+  const f=curFronts();$('frnote').textContent=f?`Fronts: WPC chart valid ${f.date} (North America only).`:'No WPC front chart covers this time.';
+  $('note2').textContent=$('shade').value==='pr'&&!DATA.pr[i]?'No precipitation total exists for the analysis time — move the slider forward.':'';
+  $('slider').value=i;layer.draw();tableSoon();if(Q&&Q.k!=='mc')nextQ();
+}
+const dateKey=d=>d.toISOString().slice(0,10);
+const curFronts=()=>DATA&&fronts[dateKey(new Date(Date.parse(DATA.cycle)+DATA.hours[cur]*3600e3))];
+
+let states=null,Q=null,hint=null;
+
+// ---- one canvas draws everything
+const FCOL={'Cold Front':'#3b82ff','Warm Front':'#ff3b3b','Stationary Front':'#3b82ff','Occluded Front':'#b043ff','Trough':'#d9a066'};
+const frType=f=>f.properties.feat.replace(' Valid','');
+const frLines=(f,m)=>(f.geometry.type==='MultiLineString'?f.geometry.coordinates:[f.geometry.coordinates]).map(l=>l.map(([x,y])=>m.latLngToContainerPoint([y,x])));
+const Cv=L.Layer.extend({
+  onAdd(m){this._m=m;this.c=L.DomUtil.create('canvas','leaflet-zoom-hide');this.c.style.pointerEvents='none';
+    m.getPanes().overlayPane.appendChild(this.c);m.on('moveend zoomend resize',this.draw,this);this.draw();},
+  onRemove(m){this.c.remove();m.off('moveend zoomend resize',this.draw,this);},
+  draw(){
+    const m=this._m;if(!m)return;const s=m.getSize(),c=this.c;
+    L.DomUtil.setPosition(c,m.containerPointToLayerPoint([0,0]));c.width=s.x;c.height=s.y;
+    const g=c.getContext('2d'),mode=MODES[$('shade').value];
+    if(DATA&&mode&&DATA[mode.f][cur]){
+      const f=DATA[mode.f][cur],q=6,w=Math.ceil(s.x/q),h=Math.ceil(s.y/q),t=document.createElement('canvas');t.width=w;t.height=h;
+      const tg=t.getContext('2d'),im=tg.createImageData(w,h);
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+        const ll=m.containerPointToLatLng([x*q,y*q]),v=sample(f,ll.lat,ll.lng);if(isNaN(v))continue;
+        const col=mode.col(v);if(col)im.data.set(col,(y*w+x)*4);
+      }
+      tg.putImageData(im,0,0);g.imageSmoothingEnabled=true;g.drawImage(t,0,0,s.x,s.y);
+    }
+    if(on('stt'))this.states(g);
+    if(DATA){
+      if(on('iso'))this.iso(g,cache[cur].segs,PLEV,v=>v,L=>L%20===0);
+      if(on('h5l')&&cache[cur].h5)this.iso(g,cache[cur].h5,HLEV,v=>Math.round(v/10),L=>L%300===0,[6,4]);
+      if(on('wind'))this.wind(g);if(on('hl'))this.hl(g);
+    }
+    const fc=curFronts();if(fc&&on('fr'))this.drawFronts(g,fc.gj);
+    if(on('cap'))this.cities(g);
+    if(hint&&hint.ll){const p=m.latLngToContainerPoint(hint.ll);g.strokeStyle='#ffd23f';g.lineWidth=4;g.beginPath();g.arc(p.x,p.y,28,0,7);g.stroke();}
+  },
+  states(g){
+    if(!states)return;g.strokeStyle='#fff8';g.lineWidth=1;g.beginPath();
+    for(const f of states.features){
+      const polys=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
+      for(const poly of polys)for(const ring of poly)ring.forEach(([x,y],i)=>{const p=this._m.latLngToContainerPoint([y,x]);i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y);});
+    }
+    g.stroke();
+  },
+  iso(g,segs,levels,fmt,bold,dash){ // lines + a label about every 110 px
+    const m=this._m,placed=[];g.textAlign='center';g.textBaseline='middle';g.font='bold 11px system-ui';
+    for(const L of levels){
+      g.strokeStyle=dash?'#d6b3ff':bold(L)?'#fff':'#fffa';g.lineWidth=bold(L)?1.8:1;g.setLineDash(dash||[]);g.beginPath();
+      const S=segs[L].map(([a,b,c,d])=>[m.latLngToContainerPoint([a,b]),m.latLngToContainerPoint([c,d])]);
+      for(const [p,q] of S){g.moveTo(p.x,p.y);g.lineTo(q.x,q.y);}
+      g.stroke();g.setLineDash([]);
+      for(const [p,q] of S){
+        const x=(p.x+q.x)/2,y=(p.y+q.y)/2;
+        if(x<20||y<20||x>g.canvas.width-20||y>g.canvas.height-20||Math.hypot(p.x-q.x,p.y-q.y)<3)continue;
+        if(placed.some(o=>Math.hypot(o[0]-x,o[1]-y)<110))continue;
+        placed.push([x,y]);let a=Math.atan2(q.y-p.y,q.x-p.x);if(Math.abs(a)>Math.PI/2)a+=Math.PI;
+        g.save();g.translate(x,y);g.rotate(a);g.lineWidth=3;g.strokeStyle='#000';g.fillStyle=dash?'#e6d2ff':'#fff';
+        g.strokeText(fmt(L),0,0);g.fillText(fmt(L),0,0);g.restore();
+      }
+    }
+    g.textBaseline='alphabetic';
+  },
+  wind(g){ // arrow length grows with speed
+    const m=this._m,s=m.getSize(),STEP=52;
+    for(let x=STEP/2;x<s.x;x+=STEP)for(let y=STEP/2;y<s.y;y+=STEP){
+      const ll=m.containerPointToLatLng([x,y]),w=wind(ll.lat,ll.lng);if(!w)continue;
+      const sp=Math.hypot(w.u,w.v),len=Math.min(44,4+sp*3.2),a=Math.atan2(-w.v,w.u);
+      g.save();g.translate(x,y);g.rotate(a);
+      for(const [lw,col] of [[4,'#000a'],[2,'#fff']]){
+        g.strokeStyle=col;g.lineWidth=lw;g.lineCap='round';g.beginPath();
+        g.moveTo(-len/2,0);g.lineTo(len/2,0);g.moveTo(len/2-6,-4);g.lineTo(len/2,0);g.lineTo(len/2-6,4);g.stroke();
+      }
+      g.restore();
+    }
+  },
+  cities(g){
+    const z=this._m.getZoom();if(z<3)return;g.font='11px system-ui';g.textAlign='left';g.lineWidth=3;
+    for(const c of DATA?DATA.cities:[]){
+      const cap=c.k==='cap';if(cap&&z<4)continue;
+      const p=this._m.latLngToContainerPoint([c.lat,c.lon]);
+      if(p.x<0||p.y<0||p.x>g.canvas.width||p.y>g.canvas.height)continue;
+      g.fillStyle=cap?'#ffd23f':'#7fe3ff';g.strokeStyle='#000';g.beginPath();g.arc(p.x,p.y,3,0,7);g.fill();
+      if(z>=(cap?5:3)){
+        const t=on('ctemp')?` ${Math.round(F_(c.v[cur][0]))}°`:'',txt=(z>=5||!on('ctemp')?c.n:'')+t;
+        g.strokeText(txt,p.x+6,p.y+4);g.fillStyle='#fff';g.fillText(txt,p.x+6,p.y+4);
+      }
+    }
+  },
+  hl(g){
+    g.textAlign='center';const big=this._m.getZoom()<4,fs=big?15:22;
+    for(const [la,lo,v,t] of cache[cur].ex){
+      const p=this._m.latLngToContainerPoint([la,lo]);
+      if(p.x<0||p.y<0||p.x>g.canvas.width||p.y>g.canvas.height)continue;
+      g.strokeStyle='#000';g.fillStyle='#fff';g.font=`bold ${fs}px system-ui`;g.lineWidth=4;g.strokeText(t,p.x,p.y);g.fillText(t,p.x,p.y);
+      g.font=`bold ${big?9:11}px system-ui`;g.lineWidth=3;g.strokeText(Math.round(v),p.x,p.y+fs*.6);g.fillText(Math.round(v),p.x,p.y+fs*.6);
+    }
+  },
+  drawFronts(g,gj){
+    const SP=26;
+    for(const f of gj.features){
+      const type=frType(f),col=FCOL[type]||'#fff';
+      for(const P of frLines(f,this._m)){
+        if(hint&&hint.feat===f){g.lineWidth=9;g.strokeStyle='#ffd23f';g.beginPath();P.forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y));g.stroke();}
+        g.lineWidth=2.5;g.strokeStyle=col;g.setLineDash(type==='Trough'?[8,6]:[]);
+        g.beginPath();P.forEach((p,i)=>i?g.lineTo(p.x,p.y):g.moveTo(p.x,p.y));g.stroke();g.setLineDash([]);
+        if(type==='Trough')continue;
+        let acc=SP/2,n=0;
+        for(let i=1;i<P.length;i++){
+          const a=P[i-1],b=P[i],d=Math.hypot(b.x-a.x,b.y-a.y);if(!d)continue;
+          const ang=Math.atan2(b.y-a.y,b.x-a.x);
+          while(acc<=d){
+            const x=a.x+Math.cos(ang)*acc,y=a.y+Math.sin(ang)*acc;
+            const kind=type==='Cold Front'?'cold':type==='Warm Front'?'warm':(n%2?'warm':'cold');
+            this.sym(g,x,y,ang,kind,type==='Stationary Front'&&n%2?'#ff3b3b':col);n++;acc+=SP;
+          }
+          acc-=d;
+        }
+      }
+    }
+  },
+  sym(g,x,y,ang,kind,col){
+    g.save();g.translate(x,y);g.rotate(ang);g.fillStyle=col;g.beginPath();
+    if(kind==='cold'){g.moveTo(-6,0);g.lineTo(6,0);g.lineTo(0,-10);}else g.arc(0,0,6,Math.PI,0);
+    g.closePath();g.fill();g.restore();
+  }
+});
+const layer=new Cv().addTo(map);
+
+// ---- city readouts: table of the cities nearest the map center, plus click popups
+const mph=(u,v)=>Math.round(Math.hypot(u,v)*2.237),inch=mm=>mm==null?'–':(mm/25.4).toFixed(2)+'"';
+let tt=null;const tableSoon=()=>{clearTimeout(tt);tt=setTimeout(renderTable,150);};
+function renderTable(){
+  if(!DATA||!$('ctbl').open)return;
+  const c0=map.getCenter(),b=map.getBounds();
+  const rows=DATA.cities.filter(c=>b.contains([c.lat,c.lon])).map(c=>({c,d:Math.hypot(c.lat-c0.lat,(c.lon-c0.lng)*Math.cos(c0.lat*Math.PI/180))}))
+    .sort((a,b)=>a.d-b.d).slice(0,12);
+  $('ctab').innerHTML='<tr><th>City</th><th>°F</th><th>hPa</th><th>Wind</th><th>6-h rain</th></tr>'+rows.map(({c})=>{
+    const [T,p,u,v,pr]=c.v[cur];return `<tr><td>${c.n}</td><td>${Math.round(F_(T))}</td><td>${Math.round(p)}</td><td>${mph(u,v)} ${compass(u,v)}</td><td>${inch(pr)}</td></tr>`;}).join('')||'<tr><td>No cities in view</td></tr>';
+}
+$('ctbl').ontoggle=renderTable;map.on('moveend',tableSoon);
+function cityPopup(c){
+  const [T,p,u,v,pr]=c.v[cur];
+  return `<b>${c.n}</b><br>${Math.round(F_(T))}°F (${Math.round(T)}°C)<br>${p.toFixed(1)} hPa (${inHg(p)} inHg)<br>Wind ${mph(u,v)} mph from the ${compass(u,v)}<br>`+
+    (pr==null?'6-h precip: n/a at analysis time':`6-h precip: ${inch(pr)} (${pr.toFixed(1)} mm)`)+'<br><small>GFS forecast value for this city</small>';
+}
+
+// ---- click: city, quiz answer, or probe
+const inHg=h=>(h*0.02953).toFixed(2);
+map.on('click',e=>{
+  const pt=map.latLngToContainerPoint(e.latlng);
+  const city=on('cap')&&DATA.cities.find(c=>{const p=map.latLngToContainerPoint([c.lat,c.lon]);return Math.hypot(p.x-pt.x,p.y-pt.y)<10&&(c.k!=='cap'||map.getZoom()>=4)&&map.getZoom()>=3;});
+  if(city)return L.popup().setLatLng([city.lat,city.lon]).setContent(cityPopup(city)).openOn(map);
+  if(Q&&(Q.k==='pt'||Q.k==='fr')&&!Q.done)return answerClick(e);
+  const {lat,lng}=e.latlng,p=sample(fld('p'),lat,lng);if(isNaN(p))return;
+  const w=wind(lat,lng),pr=DATA.pr[cur]&&sample(DATA.pr[cur],lat,lng),z=sample(fld('h5'),lat,lng),j=sample(fld('w5'),lat,lng);
+  L.popup().setLatLng(e.latlng).setContent(`<b>${p.toFixed(1)} hPa</b> (${inHg(p)} inHg)<br>${p>=1013?'Above':'Below'} average (1013) — ${p>=1013?'high':'low'}-pressure side`+
+    (w?`<br>Surface wind ≈ ${mph(w.u,w.v)} mph from the ${compass(w.u,w.v)} <small>(estimated)</small>`:'')+
+    (pr==null?'':`<br>6-h precip ≈ ${inch(pr)}`)+
+    `<br>500 mb: ${Math.round(z)} m high, wind ${Math.round(j)} kt`).openOn(map);
+});
+
+// ---- quiz
+const CONCEPTS=[
+  {q:'In the Northern Hemisphere, winds around a LOW blow…',o:['clockwise and outward','counterclockwise and inward','straight toward the High','in no set pattern'],a:1,why:'Air flows toward low pressure and Earth’s rotation bends it right, giving counterclockwise, inward spiral.'},
+  {q:'Isobars packed closely together mean…',o:['light wind','strong wind','no clouds','a front is present'],a:1,why:'Tight isobars = a steep pressure gradient, which drives stronger wind.'},
+  {q:'Which usually brings clear, calm weather?',o:['A Low','A High','A trough','An occluded front'],a:1,why:'Air sinks in a High, which suppresses clouds.'},
+  {q:'What usually happens as a cold front passes?',o:['Temperature rises','Temperature drops and winds shift','Pressure keeps falling','Skies stay clear'],a:1,why:'Cold, dense air replaces warm air; lifting ahead of the front often triggers showers or storms.'},
+  {q:'Winds around a HIGH in the Northern Hemisphere are…',o:['clockwise and outward','counterclockwise and outward','clockwise and inward','counterclockwise and inward'],a:0,why:'Air flows out of a High and is bent right: clockwise, spiraling outward.'},
+  {q:'Where is the jet stream strongest at 500 mb?',o:['Where height lines are far apart','Where height lines are packed tightly','Directly over a High','Only near the equator'],a:1,why:'Like isobars, closely spaced height lines mean a steep gradient and fast wind.'},
+  {q:'Surface Lows often develop…',o:['under a ridge in the jet stream','under a trough (dip) in the jet stream','only over oceans','where the air is calm'],a:1,why:'Upper-level troughs help lift air, which lowers surface pressure underneath.'},
+];
+const score=[0,0],pick=a=>a[Math.floor(Math.random()*a.length)];
+const inView=(la,lo)=>map.getBounds().contains([la,lo]);
+function nextQ(){
+  hint=null;const ex=cache[cur].ex.filter(e=>inView(e[0],e[1])),pool=[],fc=curFronts();
+  ['H','L'].forEach(t=>ex.some(e=>e[3]===t)&&pool.push({k:'pt',t}));
+  if(fc)['Cold Front','Warm Front'].forEach(t=>fc.gj.features.some(f=>frType(f)===t)&&pool.push({k:'fr',t}));
+  CONCEPTS.forEach(c=>pool.push({k:'mc',...c}));
+  Q=pick(pool);Q.done=false;const b=$('qbox');
+  if(Q.k==='pt')b.innerHTML=`Click the center of a <b>${Q.t==='H'?'High':'Low'}</b>-pressure system on the map.<p><button data-show>Show me</button></p>`;
+  else if(Q.k==='fr')b.innerHTML=`Click on a <b>${Q.t.toLowerCase()}</b>. <p><button data-show>Show me</button></p>`;
+  else b.innerHTML=`<b>${Q.q}</b>`+Q.o.map((o,i)=>`<button data-i="${i}">${o}</button>`).join('');
+  layer.draw();
+}
+function result(ok,msg){
+  Q.done=ok||Q.done;if(!Q.tried){score[1]++;if(ok)score[0]++;}Q.tried=true; // only the first attempt counts
+  $('score').textContent=`${score[0]}/${score[1]}`;
+  $('qbox').innerHTML+=`<p class="${ok?'ok':'no'}">${ok?'✔ ':'✘ '}${msg}</p>`;
+}
+$('qbox').onclick=e=>{
+  const b=e.target.closest('button');if(!b||!Q)return;
+  if('show' in b.dataset){
+    if(Q.k==='pt'){const x=cache[cur].ex.find(v=>v[3]===Q.t&&inView(v[0],v[1]));hint={ll:[x[0],x[1]]};}
+    else hint={feat:curFronts().gj.features.find(f=>frType(f)===Q.t)};
+    return layer.draw();
+  }
+  if(Q.k==='mc'&&!Q.done){const ok=+b.dataset.i===Q.a;result(ok,ok?Q.why:'Not quite — try another answer.');if(ok)Q.done=true;}
+};
+$('qgo').onclick=()=>nextQ();
+function answerClick(e){
+  let ok=false,msg;
+  if(Q.k==='pt'){
+    const hit=cache[cur].ex.find(v=>v[3]===Q.t&&Math.hypot(v[0]-e.latlng.lat,(v[1]-e.latlng.lng)*Math.cos(v[0]*Math.PI/180))<7);
+    ok=!!hit;msg=ok?`That ${Q.t==='H'?'High':'Low'} is about ${Math.round(hit[2])} hPa. Click “New question” to continue.`:
+      `Look for the ${Q.t==='H'?'highest':'lowest'} pressure — closed isobar circles around an ${Q.t}. Try again or “Show me”.`;
+  }else{
+    const pt=map.latLngToContainerPoint(e.latlng),near=curFronts().gj.features.filter(f=>frType(f)===Q.t).some(f=>frLines(f,map).some(P=>P.some((p,i)=>{
+      if(!i)return false;const a=P[i-1],dx=p.x-a.x,dy=p.y-a.y,t=Math.max(0,Math.min(1,((pt.x-a.x)*dx+(pt.y-a.y)*dy)/(dx*dx+dy*dy||1)));
+      return Math.hypot(pt.x-a.x-t*dx,pt.y-a.y-t*dy)<25;})));
+    ok=near;msg=ok?`Yes — blue lines with triangles are cold fronts; the triangles point the way the front moves.`:`Not on one. ${Q.t==='Cold Front'?'Cold fronts are blue with triangles.':'Warm fronts are red with semicircles.'}`;
+  }
+  result(ok,msg);if(ok)hint=null,layer.draw();
+}
+
+// ---- controls
+document.querySelectorAll('.panel input[type=checkbox],#shade').forEach(c=>c.onchange=()=>{
+  if(DATA&&on('h5l')&&!cache[cur].h5)cache[cur].h5=contour(DATA.h5[cur],HLEV);
+  legend();layer.draw();if(DATA)$('note2').textContent=$('shade').value==='pr'&&!DATA.pr[cur]?'No precipitation total exists for the analysis time — move the slider forward.':'';
+});
+document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>map.setView(b.dataset.view==='na'?[39.99,-99.77]:[42,-30],b.dataset.view==='na'?5:2));
+$('slider').oninput=e=>{
+  const i=+e.target.value;
+  if(on('h5l')&&!cache[i]?.h5&&cache[i])cache[i].h5=contour(DATA.h5[i],HLEV);
+  setFrame(i);
+};
+let timer=null;
+$('play').onclick=()=>{
+  if(timer){clearInterval(timer);timer=null;$('play').textContent='▶ Play';return;}
+  $('play').textContent='❚❚ Pause';
+  timer=setInterval(()=>setFrame((cur+1)%DATA.hours.length),900);
+};
+legend();
+
+fetch('https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json').then(r=>r.json()).then(j=>{states=j;layer.draw();});
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const frontsReady=Promise.all([2,14,26].map(id=>fetch(`https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/natl_fcst_wx_chart/MapServer/${id}/query?where=1%3D1&outFields=feat,popupconte&f=geojson`)
+  .then(r=>r.json()).then(gj=>{
+    gj.features=gj.features.filter(f=>f.geometry);
+    const m=(gj.features[0]?.properties.popupconte||'').match(/(\w{3}) (\d+) (\d{4})/);if(!m)return;
+    fronts[dateKey(new Date(Date.UTC(+m[3],MON.indexOf(m[1]),+m[2])))]={gj,date:`${m[1]} ${m[2]}`};
+  }).catch(()=>{})));
+
+(async()=>{
+  try{
+    DATA=await (await fetch('data/pressure.json')).json();
+    LAT0=DATA.lat0;LON0=DATA.lon0;D=DATA.d;const g0=DATA.p[0];
+    lats=g0.map((_,i)=>LAT0+i*D);lons=g0[0].map((_,i)=>LON0+i*D);
+    $('slider').max=DATA.hours.length-1;
+    const h=(Date.now()-Date.parse(DATA.cycle))/3600e3; // start on the frame closest to now
+    const start=DATA.hours.reduce((b,x,i)=>Math.abs(x-h)<Math.abs(DATA.hours[b]-h)?i:b,0);
+    $('st').textContent='GFS cycle '+DATA.cycle.slice(5,16).replace('T',' ')+'Z';
+    await frontsReady;setFrame(start);
+  }catch(e){$('st').textContent='load failed: '+e.message;}
+})();
+</script></body></html>
