@@ -39,6 +39,18 @@ The **Local** tab has two tools. Both use only the present wind and temperatures
   America chart too). The My Place card lists the nearest fronts (NOAA and student-drawn) and a distance ÷ speed arrival calculator
   where the student supplies the speed.
 
+## Working over several days
+- **Saves automatically.** The place, notes, drawn fronts, units and the map view and settings are remembered in the student's browser, so
+  they can close the page and continue tomorrow on the same computer.
+- **💾 My work** downloads everything to one `.json` file and opens it again, on any computer. This is the backup: browser data is lost if
+  cookies and site data are cleared or a different computer is used. A small orange dot on the button, and a banner in Notes, remind
+  students when they have changes that are not in a backup file yet.
+- **Teachers** can open a student's file in the Teacher tab to read their notes next to the model forecast for their place.
+- **Hide / dock.** The side panel can be hidden to see the whole map; a dock of four buttons brings it back. Each tab's sections also
+  collapse. Arrow keys move between tabs.
+- **Help** (❓) explains the five steps and opens on a student's first visit.
+- **Version.** The footer of the panel shows which version is live (the commit and publish time are stamped in by the workflow).
+
 ## Student notes
 Students present their forecast themselves, so there is no forecast form. The **My Notes** tab collects evidence by topic
 (highs and lows, fronts, breeze, windward/leeward, currents). The 📌 buttons on the map and the place card pin what the

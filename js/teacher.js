@@ -2,6 +2,7 @@
 // Unlocking decrypts it in memory for this browser tab; reloading locks it again. Nothing is saved.
 import { $, esc, fmtT, fmtS, fmtRain, compass, windFrom } from './util.js';
 import { P } from './place.js';
+import { TOPICS } from './notes.js';
 import { S, addForecast, sample, frameTime } from './data.js';
 
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
@@ -42,8 +43,19 @@ function renderTeacher() {
   const pl = P.place;
   $('tbody').innerHTML = `<p class="tb">Teacher view is ON. Forecast frames are loaded in this tab only. The time slider now continues past “Now” into orange <b>FORECAST</b> frames. Reload the page to lock.</p>
     <h4>Model forecast for the chosen place</h4><p class="small muted">To check a student’s presentation, pick their place on the My Place tab; this table updates.</p>` +
-    (pl ? modelTable(pl.name, pl.lat, pl.lon) : '<p class="muted">No place chosen yet in this browser.</p>') + '<p><button id="tlock">Lock teacher view</button></p>';
+    (pl ? modelTable(pl.name, pl.lat, pl.lon) : '<p class="muted">No place chosen yet in this browser.</p>') +
+    `<h4>Open a student’s saved work</h4><p class="small muted">Choose the file a student saved with 💾 My work. You will see their notes next to the model forecast for their place.</p>
+    <input type="file" id="tfile" accept=".json" aria-label="Student work file"><div id="tstudent"></div><p><button id="tlock">Lock teacher view</button></p>`;
+  $('tfile').onchange = async e => { const f = e.target.files[0]; if (f) { try { showStudent(JSON.parse(await f.text())); } catch { $('tstudent').innerHTML = '<p class="warn">Could not read that file.</p>'; } } };
   $('tlock').onclick = () => location.reload();
+}
+
+function showStudent(o) {
+  if (o.app !== 'pressure-map') { $('tstudent').innerHTML = '<p class="warn">That is not a weather project file.</p>'; return; }
+  const pl = o.place, items = (o.notes && o.notes.items) || [], by = TOPICS.map(t => ({ t, items: items.filter(i => i.k === t.k) })).filter(g => g.items.length);
+  $('tstudent').innerHTML = `<h3>${esc(o.student || '(no name)')}</h3><p class="small muted">Saved ${o.savedAt ? new Date(o.savedAt).toLocaleString() : ''} · ${items.length} notes</p>` +
+    (pl ? modelTable(pl.name, pl.lat, pl.lon) : '<p class="muted">This student has not chosen a place yet.</p>') +
+    (by.map(g => `<h4>${g.t.icon} ${esc(g.t.name)}</h4>` + g.items.map(i => `<p class="tnote">${i.pin ? '📌 ' : ''}${esc(i.text).replace(/\n/g, '<br>')}</p>`).join('')).join('') || '<p class="muted">No notes yet.</p>');
 }
 
 export function initTeacher() {

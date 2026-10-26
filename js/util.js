@@ -5,7 +5,11 @@ export const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;',
 export const range = (a, b, s) => { const o = []; for (let v = a; v <= b; v += s) o.push(v); return o; };
 export const store = {
   get(k, d) { try { const v = localStorage.getItem('pm.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-  set(k, v) { try { localStorage.setItem('pm.' + k, JSON.stringify(v)); } catch { /* private window: just don't remember */ } },
+  set(k, v) {
+    try { localStorage.setItem('pm.' + k, JSON.stringify(v)); if (!['touched', 'backup', 'ui', 'seenHelp'].includes(k) && !k.startsWith('norm:')) localStorage.setItem('pm.touched', String(Date.now())); }
+    catch { /* private window: just don't remember */ }
+  },
+  del(k) { try { localStorage.removeItem('pm.' + k); } catch { /* ignore */ } },
 };
 
 // ---- units: everything is stored in metric (°C, m/s, km, mm, hPa); these format for the chosen system

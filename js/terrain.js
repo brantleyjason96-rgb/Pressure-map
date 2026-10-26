@@ -127,7 +127,7 @@ function setWind(deg) { T.custom = null; T.fromDeg = (Math.round(deg / 5) * 5 + 
 const windText = () => { const m = T.modelWind; $('wtxt').innerHTML = `${dirName(T.fromDeg)} (${T.fromDeg}°)`; $('wmodel').textContent = m ? `Model wind right now: from the ${dirName(m.dir)} (${Math.round(m.dir)}°)` : ''; };
 
 export function refreshMountains() {
-  const ok = !!(P.place && S.D); $('mbody').hidden = !ok; $('mnone').hidden = ok; if (!ok) { view.section = null; redraw(); return; }
+  const ok = !!(P.place && S.D); $('mbody').hidden = !ok; if (!ok) { view.section = null; redraw(); return; }
   modelNow(); T.custom = null; T.drawing = 0; $('mdraw').textContent = '✏️ Draw my own cross-section'; $('mdraw').classList.remove('active');
   T.fromDeg = (Math.round(T.modelWind.dir / 5) * 5 + 360) % 360; $('wslide').value = T.fromDeg; windText(); T.fit = true; analyze();
 }

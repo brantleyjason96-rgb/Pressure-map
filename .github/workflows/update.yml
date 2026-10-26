@@ -18,6 +18,7 @@ jobs:
         env:
           TEACHER_PASSWORD: ${{ secrets.TEACHER_PASSWORD }}   # optional: encrypts the forecast for the Teacher view
       - run: mkdir site && cp -r index.html css js data site/
+      - run: sed -i "s|__BUILD__|${GITHUB_SHA::7} · $(date -u '+%b %-d, %-I:%M %p UTC')|" site/index.html   # shows which version is live
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: {path: site}

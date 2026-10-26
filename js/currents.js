@@ -44,7 +44,7 @@ function nearestCurrents(lat, lon, n = 3) {
 // ---- the Local-tab tool
 const dT = c => Math.round(tempOut(c) - tempOut(0)) + tUnit();
 export async function refreshCurrents() {
-  const ok = !!(P.place && S.D && CUR); $('curbody').hidden = !ok; $('curnone').hidden = ok; if (!ok) return;
+  const ok = !!(P.place && S.D && CUR); $('curbody').hidden = !ok; if (!ok) return;
   const pl = P.place, ser = pastSeries(pl), n = S.nPast - 1, air = ser.t[n], dew = ser.d[n], near = nearestCurrents(pl.lat, pl.lon), top = near[0];
   let coast = null; try { coast = await coastFor(pl); } catch { /* coastline files unavailable: skip the offshore sea-temperature part */ }
   const parts = [];

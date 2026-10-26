@@ -2,7 +2,7 @@
 import { $, on, range, ramp, fmtT, fmtS, fmtP, fmtRain, fmtD, windFrom, compass, esc, distKm, U } from './util.js';
 import { S, fld, sample, windAt, contour, frameInfo, frameTime, isForecast, motionOf, gradientGrid } from './data.js';
 
-export const view = { hint: null, place: null, light: false, section: null, coast: null, layers: {} };   // layers: name -> fn(g, map, canvasLayer) for modules that draw on the map
+export const view = { hint: null, place: null, light: false, section: null, coast: null, localOn: false, layers: {} };   // layers: name -> fn(g, map, canvasLayer) for modules that draw on the map
 export const hooks = { click: [] };            // other modules (quiz, place picker) get first look at map clicks
 export let map, layer;
 
@@ -75,8 +75,8 @@ const Cv = L.Layer.extend({
     if (on('hl')) this.hl(g, info.ex);
     if (on('fr') && fronts && S.cur === S.nPast - 1) this.drawFronts(g, fronts.gj);
     for (const fn of Object.values(view.layers)) fn(g, m, this);
-    if (view.section) this.section(g);
-    if (view.coast) this.coast(g);
+    if (view.section && view.localOn) this.section(g);   // the Local tab's wind line and coast marker only show while that tab is open
+    if (view.coast && view.localOn) this.coast(g);
     if (view.hint && view.hint.ll) { const p = m.latLngToContainerPoint(view.hint.ll); g.strokeStyle = '#ffd23f'; g.lineWidth = 4; g.beginPath(); g.arc(p.x, p.y, 28, 0, 7); g.stroke(); }
   },
   borders(g) {
@@ -192,7 +192,7 @@ export function setFrame(i) {
   const rel = h === 0 ? 'Now (newest model analysis)' : h < 0 ? `${-h} h ago` : `FORECAST +${h} h`;
   $('when').className = isForecast(i) ? 'fc' : '';
   $('when').innerHTML = `<b>${rel}</b><small>${t.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}</small>`;
-  $('slider').value = i; legend(); layer.draw();
+  $('slider').value = i; $('slider').setAttribute('aria-valuetext', h === 0 ? 'now' : h < 0 ? `${-h} hours ago` : `forecast, ${h} hours ahead`); legend(); layer.draw();
   shadeNote();
   document.dispatchEvent(new CustomEvent('frame', { detail: i }));
 }
@@ -203,8 +203,9 @@ function shadeNote() {
 export function legend() {
   shadeNote();
   $('fliprow').hidden = $('shade').value !== 'p';
-  const m = MODES[$('shade').value]; $('legend').style.visibility = m ? 'visible' : 'hidden';
+  const m = MODES[$('shade').value]; $('maplegend').hidden = !m;
   if (!m) { ['l0', 'l1', 'l2'].forEach(i => $(i).textContent = ''); return; }
+  $('ltitle').textContent = $('shade').selectedOptions[0].textContent;
   $('legend').style.background = 'linear-gradient(90deg,' + m.stops.map(([v]) => `rgb(${(m.col(v) || m.stops[0][1]).slice(0, 3).map(Math.round)})`).join(',') + ')';
   [0, 1, 2].forEach(i => $('l' + i).textContent = m.l()[i]);
 }
@@ -264,11 +265,12 @@ export function initMap() {
   document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => map.setView(...JSON.parse(b.dataset.view)));
   document.querySelectorAll('#tab-explore input[type=checkbox], #shade').forEach(c => c.onchange = () => { legend(); layer.draw(); });
   $('slider').oninput = e => setFrame(+e.target.value);
+  $('nowbtn').onclick = () => setFrame(S.nPast - 1);
   let timer = null;
   $('play').onclick = () => {
-    if (timer) { clearInterval(timer); timer = null; $('play').textContent = '▶ Play the past 48 h'; return; }
+    if (timer) { clearInterval(timer); timer = null; $('play').textContent = '▶ Play'; return; }
     $('play').textContent = '❚❚ Pause'; if (S.cur >= S.nPast - 1) setFrame(0);
-    timer = setInterval(() => { if (S.cur >= S.nPast - 1) { clearInterval(timer); timer = null; $('play').textContent = '▶ Play the past 48 h'; return; } setFrame(S.cur + 1); }, 800);
+    timer = setInterval(() => { if (S.cur >= S.nPast - 1) { clearInterval(timer); timer = null; $('play').textContent = '▶ Play'; return; } setFrame(S.cur + 1); }, 800);
   };
   document.addEventListener('units', () => { if (S.D) { legend(); layer.draw(); } });
   legend();

@@ -6,73 +6,98 @@
 <link rel="stylesheet" href="css/style.css">
 </head><body>
 <div id="app">
-  <div id="mapwrap">
+  <main id="mapwrap" aria-label="Weather map">
     <div id="map"></div>
+    <div id="loading" role="status">Loading the latest weather map…</div>
     <div id="samplebanner" hidden>SAMPLE DATA — not real weather</div>
+    <button id="notechip" title="Open my notes">📝 Notes <b id="ncount">0</b></button>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <div id="maplegend" hidden>
+      <div id="ltitle"></div><div id="legend"></div><div class="row"><span id="l0"></span><span id="l1"></span><span id="l2"></span></div>
+    </div>
     <div class="bar">
-      <button id="play">▶ Play the past 48 h</button>
-      <input type="range" id="slider" min="0" max="8" value="8" step="1" aria-label="Time">
+      <button id="play" title="Play the last 48 hours as a loop">▶ Play</button>
+      <input type="range" id="slider" min="0" max="8" value="8" step="1" aria-label="Time: slide from 48 hours ago to now">
+      <button id="nowbtn" title="Jump to the newest map">Now</button>
       <div id="when">…</div>
     </div>
-  </div>
+    <nav id="dock" hidden aria-label="Open the side panel">
+      <button data-dock="explore" title="Explore">🗺<span>Explore</span></button>
+      <button data-dock="place" title="My Place">📍<span>Place</span></button>
+      <button data-dock="local" title="Local effects">⛰️<span>Local</span></button>
+      <button data-dock="notes" title="My Notes">📝<span>Notes</span></button>
+    </nav>
+  </main>
 
-  <aside id="side">
+  <aside id="side" aria-label="Project panel">
     <header>
       <div class="top"><strong>Weather Forecast Project</strong>
-        <span class="topbtns">
-          <select id="units" aria-label="Units"><option value="us">°F · mph</option><option value="metric">°C · km/h</option></select>
-          <button id="tbtn" class="ghost" title="Teacher view">Teacher</button>
-        </span></div>
+        <button id="hide" class="ghost" title="Hide this panel to see the whole map" aria-label="Hide the panel">Hide ⇥</button></div>
+      <div class="toolbar">
+        <button id="mywork" title="Save your work, or open saved work">💾 My work<i id="workdot" hidden></i></button>
+        <button id="helpbtn" title="How this works">❓ Help</button>
+        <select id="units" aria-label="Units"><option value="us">°F · mph</option><option value="metric">°C · km/h</option></select>
+        <button id="tbtn" class="ghost" title="Teacher view">Teacher</button>
+      </div>
       <div id="st" class="muted small">loading…</div>
-      <nav id="tabs">
-        <button data-tab="explore" class="on">1 · Explore</button>
-        <button data-tab="place">2 · My Place</button>
-        <button data-tab="local">3 · Local</button>
-        <button data-tab="notes">4 · Notes</button>
-        <button data-tab="teacher" hidden>Teacher</button>
+      <nav id="tabs" role="tablist" aria-label="Project steps">
+        <button data-tab="explore" role="tab" class="on" aria-selected="true"><span class="num">1</span>Explore</button>
+        <button data-tab="place" role="tab" aria-selected="false"><span class="num">2</span>Place<i class="bdg" id="bplace"></i></button>
+        <button data-tab="local" role="tab" aria-selected="false"><span class="num">3</span>Local</button>
+        <button data-tab="notes" role="tab" aria-selected="false"><span class="num">4</span>Notes<i class="bdg" id="bnotes"></i></button>
+        <button data-tab="teacher" role="tab" aria-selected="false" hidden>Teacher</button>
       </nav>
     </header>
 
-    <section id="tab-explore" class="tab">
-      <p class="muted small">This map shows the weather <b>so far</b>: the model’s picture of the last 48 hours up to now. The future is for <b>you</b> to forecast.</p>
-      <div class="views"><button data-view="[[39.99,-99.77],4]">North America</button> <button data-view="[[20,0],2]">World</button></div>
-      <h4>Shading</h4>
-      <select id="shade">
-        <option value="p">Surface pressure</option>
-        <option value="t">Temperature</option>
-        <option value="d">Dewpoint (how humid)</option>
-        <option value="pr">Rain in the 6 h before</option>
-        <option value="tg">Temperature contrast (find the fronts)</option>
-        <option value="sst">Sea-surface temperature</option>
-        <option value="sstA">Sea temperature vs. normal (shows currents)</option>
-        <option value="w5">Jet stream (500 mb wind speed)</option>
-        <option value="none">None</option>
-      </select>
-      <label id="fliprow"><input type="checkbox" id="flip" checked> Low = warm colors, High = cool colors</label>
-      <h4>Lines &amp; symbols</h4>
-      <label><input type="checkbox" id="iso" checked> Isobars (hPa)</label>
-      <label><input type="checkbox" id="h5l"> 500 mb height lines (dam)</label>
-      <label><input type="checkbox" id="hl" checked> H / L centers</label>
-      <label><input type="checkbox" id="trk" checked> Where each H and L has been (dotted trail)</label>
-      <label><input type="checkbox" id="wind"> Wind arrows (model winds)</label>
-      <label><input type="checkbox" id="fr" checked> Fronts (NOAA, North America)</label>
-      <label><input type="checkbox" id="stt" checked> Borders</label>
-      <label><input type="checkbox" id="cur"> Ocean currents (red = warm, blue = cold)</label>
-      <h4>Tools</h4>
-      <div class="inline"><button id="ruler">📏 Measure distance</button><span id="rulerout" class="small"></span></div>
-      <div class="inline"><select id="ftype" aria-label="Front type"><option>Cold Front</option><option>Warm Front</option><option>Stationary Front</option><option>Occluded Front</option><option>Trough</option></select>
-        <button id="fdraw">✏️ Draw a front</button></div>
-      <div class="inline"><button id="ffinish" hidden>✔ Finish front</button><button id="fundo" class="ghost">Undo</button><button id="fclear" class="ghost">Clear my fronts</button></div>
-      <p id="fhelp" class="small muted"></p>
-      <h4>Base map</h4>
-      <select id="base"><option value="dark">Dark</option><option value="terrain">Terrain (mountains)</option></select>
-      <div id="legend"></div><div class="row"><span id="l0"></span><span id="l1"></span><span id="l2"></span></div>
-      <div class="key">
-        <span style="color:#3b82ff">▲</span> cold front &nbsp;<span style="color:#ff3b3b">●</span> warm front<br>
-        <span style="color:#b043ff">▲●</span> occluded &nbsp;<span style="color:#3b82ff">▲</span><span style="color:#ff3b3b">●</span> stationary &nbsp;<span style="color:#d9a066">- - -</span> trough
-      </div>
-      <p id="frnote" class="muted small"></p><p id="note2" class="muted small"></p>
-      <details><summary>How to read this map</summary>
+    <section id="tab-explore" class="tab" role="tabpanel">
+      <p class="lead">Slide the time bar to watch the <b>last 48 hours</b>. Click the map for details. The future is for <b>you</b> to forecast.</p>
+      <div class="views"><button data-view="[[39.99,-99.77],4]">North America</button> <button data-view="[[20,0],2]">World</button> <button id="goplace">📍 My place</button></div>
+
+      <details class="grp" open><summary>🎨 Map colors</summary>
+        <label class="block">Show <select id="shade">
+          <option value="p">Surface pressure</option>
+          <option value="t">Temperature</option>
+          <option value="d">Dewpoint (how humid)</option>
+          <option value="pr">Rain in the 6 h before</option>
+          <option value="tg">Temperature contrast (find the fronts)</option>
+          <option value="sst">Sea-surface temperature</option>
+          <option value="sstA">Sea temperature vs. normal (shows currents)</option>
+          <option value="w5">Jet stream (500 mb wind speed)</option>
+          <option value="none">None</option>
+        </select></label>
+        <label id="fliprow"><input type="checkbox" id="flip" checked> Low = warm colors, High = cool colors</label>
+        <p id="note2" class="muted small"></p>
+      </details>
+
+      <details class="grp" open><summary>📈 Lines and symbols</summary>
+        <label><input type="checkbox" id="iso" checked> Isobars (hPa)</label>
+        <label><input type="checkbox" id="h5l"> 500 mb height lines (dam)</label>
+        <label><input type="checkbox" id="hl" checked> H / L centers</label>
+        <label><input type="checkbox" id="trk" checked> Where each H and L has been (dotted trail)</label>
+        <label><input type="checkbox" id="wind"> Wind arrows (model winds)</label>
+        <label><input type="checkbox" id="fr" checked> Fronts (NOAA, North America)</label>
+        <label><input type="checkbox" id="cur"> Ocean currents (red = warm, blue = cold)</label>
+        <label><input type="checkbox" id="stt" checked> Borders</label>
+        <div class="key">
+          <span style="color:#3b82ff">▲</span> cold front &nbsp;<span style="color:#ff3b3b">●</span> warm front<br>
+          <span style="color:#b043ff">▲●</span> occluded &nbsp;<span style="color:#3b82ff">▲</span><span style="color:#ff3b3b">●</span> stationary &nbsp;<span style="color:#d9a066">- - -</span> trough
+        </div>
+        <p id="frnote" class="muted small"></p>
+      </details>
+
+      <details class="grp" open><summary>🧰 Tools</summary>
+        <div class="inline"><button id="ruler">📏 Measure distance</button><span id="rulerout" class="small"></span></div>
+        <div class="inline"><select id="ftype" aria-label="Front type to draw"><option>Cold Front</option><option>Warm Front</option><option>Stationary Front</option><option>Occluded Front</option><option>Trough</option></select>
+          <button id="fdraw">✏️ Draw a front</button></div>
+        <div class="inline"><button id="ffinish" hidden>✔ Finish front</button><button id="fundo" class="ghost">Undo</button><button id="fclear" class="ghost">Clear my fronts</button></div>
+        <p id="fhelp" class="small muted"></p>
+      </details>
+
+      <details class="grp"><summary>🗺 Base map</summary>
+        <label class="block">Map style <select id="base"><option value="dark">Dark</option><option value="terrain">Terrain (mountains)</option></select></label>
+      </details>
+
+      <details class="grp"><summary>📖 How to read this map</summary>
         <p><b>Isobars</b> connect points with equal pressure. Lines close together = big pressure change over a short distance = <b>strong wind</b>.</p>
         <p><b>Wind</b> blows from high toward low pressure, but Earth’s rotation bends it: in the <b>Northern Hemisphere</b> clockwise &amp; outward around a High, counterclockwise &amp; inward around a Low. In the <b>Southern Hemisphere</b> it is the opposite.</p>
         <p><b>Highs</b>: air sinks → clear, calm. <b>Lows</b>: air rises → clouds and precipitation.</p>
@@ -82,47 +107,54 @@
         <p><b>Click anywhere</b> for the values at that spot, then choose it as your place.</p>
         <p class="muted">Pressure, temperature, wind and rain are NOAA GFS model analyses. Fronts are forecasters’ hand analysis.</p>
       </details>
-      <details><summary>Quiz me</summary>
+      <details class="grp"><summary>❓ Quiz me</summary>
         <p><button id="qgo">New question</button> <span id="score"></span></p>
         <div id="qbox"></div>
       </details>
+      <div class="pager"><span></span><button data-go="place" class="primary">Next: choose my place ▶</button></div>
     </section>
 
-    <section id="tab-place" class="tab" hidden>
+    <section id="tab-place" class="tab" role="tabpanel" hidden>
       <h3>Choose your place</h3>
-      <div class="search"><input id="pq" placeholder="Search a city or town…" autocomplete="off"><button id="pgo">Search</button></div>
+      <p class="lead">Pick any place on Earth. You will study its weather and make a 3-day forecast for it.</p>
+      <div class="search"><input id="pq" placeholder="Search a city or town…" autocomplete="off" aria-label="Search for a city or town"><button id="pgo">Search</button></div>
       <div id="pres" class="pres"></div>
       <button id="ppick" class="wide">📍 Pick on the map</button>
       <details id="pstartd" open><summary>Or choose from a list of good places to study</summary><div id="pstart" class="starters"></div></details>
       <label class="block">Place name <input id="pname" placeholder="(choose a place first)"></label>
       <div id="pcard"></div>
+      <div class="pager"><button data-go="explore" class="ghost">◀ Explore</button><button data-go="local" class="primary">Next: local effects ▶</button></div>
     </section>
 
-    <section id="tab-local" class="tab" hidden>
+    <section id="tab-local" class="tab" role="tabpanel" hidden>
       <h3>Local effects at my place</h3>
-      <p class="muted small">The big map shows the large weather patterns. Mountains and coasts add local effects the model can’t see. Use these tools to decide how they change <i>your</i> forecast.</p>
+      <p class="lead">The big map shows large weather patterns. Mountains, coasts and ocean currents add local effects the model can’t see. Decide how they change <i>your</i> forecast.</p>
       <p id="lplace" class="small"></p>
+      <div id="lempty" class="empty" hidden>Choose your place first.<br><button data-go="place" class="primary">Choose my place ▶</button></div>
       <details class="topic" open><summary>⛰️ Mountains: windward and leeward</summary>
-        <p id="mnone" class="muted small">Choose a place on the My Place tab first.</p><div id="mbody" hidden></div></details>
+        <div id="mbody" hidden></div></details>
       <details class="topic" open><summary>🌊 Coast: land and sea breeze</summary>
-        <p id="cnone" class="muted small">Choose a place on the My Place tab first.</p><div id="cbody" hidden></div></details>
+        <div id="cbody" hidden></div></details>
       <details class="topic" open><summary>🌀 Ocean currents</summary>
-        <p id="curnone" class="muted small">Choose a place on the My Place tab first.</p><div id="curbody" hidden></div></details>
+        <div id="curbody" hidden></div></details>
+      <div class="pager"><button data-go="place" class="ghost">◀ My place</button><button data-go="notes" class="primary">Next: my notes ▶</button></div>
     </section>
 
-    <section id="tab-notes" class="tab" hidden>
+    <section id="tab-notes" class="tab" role="tabpanel" hidden>
       <h3>My notes</h3>
-      <p class="muted small">Collect your evidence here while you work, then build your presentation. Use the <b>📌 Add to notes</b> buttons on the map and the My Place tab to save what you find. The forecast itself is yours to make and present.</p>
-      <label class="block">My name <input id="nname" placeholder="First and last name"></label>
+      <p class="lead">Collect your evidence here, then build your presentation. Use the <b>📌 Add to notes</b> buttons on the map and the other tabs to save what you find.</p>
+      <label class="block">My name <input id="nname" placeholder="First and last name" autocomplete="name"></label>
       <p id="nplace" class="small muted"></p>
-      <div id="ncover" class="cover"></div>
+      <div id="ncover" class="cover" aria-label="Notes per topic"></div>
+      <div id="nbackup" class="backup" hidden>You have changes that are not in a backup file yet. <button id="nbackupbtn">💾 Save a copy</button></div>
       <div class="addnote">
         <label class="block">Add a note about <select id="ntopic"></select></label>
         <p id="nask" class="ask"></p>
         <div id="nframes" class="frames"></div>
-        <textarea id="ntext" rows="4" placeholder="Write your note…"></textarea>
+        <label class="block">Your note <textarea id="ntext" rows="4" placeholder="Write your note…"></textarea></label>
         <button id="nadd" class="primary wide">Add note</button>
       </div>
+      <label class="block">Show my notes by <select id="ngroup"><option value="topic">Topic</option><option value="day">Day</option></select></label>
       <div id="nlist"></div>
       <div class="actions">
         <button id="nprint" class="primary">🖨 Print / Save as PDF</button>
@@ -131,16 +163,44 @@
         <button id="nclear" class="ghost">Delete all</button>
       </div>
       <p class="muted small">Tip for slides: on the My Place tab, “Download these charts as a picture” gives you a clean image of your place’s past 48 hours. To capture the map, use your device’s screenshot tool.</p>
+      <div class="pager"><button data-go="local" class="ghost">◀ Local effects</button><span></span></div>
     </section>
 
-    <section id="tab-teacher" class="tab" hidden><div id="tbody"></div></section>
+    <section id="tab-teacher" class="tab" role="tabpanel" hidden><div id="tbody"></div></section>
+    <footer class="foot muted small">Version: <span id="ver">__BUILD__</span></footer>
   </aside>
 </div>
 
-<div id="tmodal" hidden><form id="tform"><h3>Teacher view</h3>
+<div id="tmodal" class="modal" hidden><form id="tform" role="dialog" aria-modal="true" aria-labelledby="ttl"><h3 id="ttl">Teacher view</h3>
   <p class="small muted">Enter the teacher passphrase to see the model’s own forecast. Students never receive it.</p>
-  <input type="password" id="tpw" autocomplete="current-password" placeholder="Passphrase"><div id="terr" class="warn"></div>
+  <label class="block">Passphrase <input type="password" id="tpw" autocomplete="current-password"></label><div id="terr" class="warn" role="alert"></div>
   <div><button class="primary">Unlock</button> <button type="button" id="tcancel" class="ghost">Cancel</button></div></form></div>
+
+<div id="help" class="modal" hidden><div class="card" role="dialog" aria-modal="true" aria-labelledby="htl">
+  <h3 id="htl">Make your own 3-day forecast</h3>
+  <p>This map shows the weather <b>up to now</b>. It never shows the future. Your job is to study the evidence and <b>predict the next 3 days</b> for a place you choose.</p>
+  <ol class="steps4">
+    <li><b>Explore.</b> Slide the time bar through the last 48 hours. Watch Highs, Lows and fronts move. Click an <b>H</b> or <b>L</b> to see its speed and direction.</li>
+    <li><b>My Place.</b> Choose a place. See its normal weather and what has been happening there.</li>
+    <li><b>Local.</b> Check mountains, the coast and ocean currents. They change the weather in ways the big map can’t show.</li>
+    <li><b>Notes.</b> Press <b>📌 Add to notes</b> whenever you find evidence. Use your notes to build your presentation.</li>
+    <li><b>Save your work.</b> Press <b>💾 My work</b> to download a file. You can open it later, even on another computer.</li>
+  </ol>
+  <div class="actions"><button id="helpclose" class="primary">Got it, let’s start</button></div>
+</div></div>
+
+<div id="work" class="modal" hidden><div class="card" role="dialog" aria-modal="true" aria-labelledby="wtl">
+  <h3 id="wtl">💾 My work</h3>
+  <div id="workstatus" class="small"></div>
+  <div class="workbtns">
+    <button id="wsave" class="primary">⬇ Save my work to a file</button>
+    <label class="filebtn">⬆ Open a saved file<input type="file" id="wopen" accept=".json,application/json"></label>
+    <button id="wnew" class="ghost">Start a new project</button>
+  </div>
+  <p class="small muted">Your place, notes and drawn fronts save <b>automatically in this browser</b>, so you can come back tomorrow. They are lost if you clear your browser’s cookies and site data, or use a different computer. <b>Save a file now and then</b> as a backup, and open it to continue anywhere.</p>
+  <div class="actions"><button id="wclose" class="ghost">Close</button></div>
+</div></div>
+
 <div id="printReport"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
