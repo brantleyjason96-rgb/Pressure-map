@@ -123,9 +123,11 @@ export function renderCard() {
       <span>Wind</span><b>from the ${compass(ser.dir[n])} at ${fmtS(ser.spd[n])}</b><span>Rain, last 6 h</span><b>${fmtRain(ser.pr[n])}</b></div>
     ${pinBtn('general', `${pl.name}, ${when()}: temperature ${fmtT(t)}, dewpoint ${fmtT(ser.d[n])}, pressure ${fmtP(p)} (${tend}, ${dp24 > 0 ? '+' : ''}${dp24.toFixed(1)} hPa in 24 h), wind from the ${compass(ser.dir[n])} at ${fmtS(ser.spd[n])}, rain in the last 6 h ${fmtRain(ser.pr[n])}.`)}
     <h4>Highs and lows near you</h4><ul class="sys">${sysLine('H', pl)}${sysLine('L', pl)}</ul>
+    <div id="pfronts"></div>
     <h4>The past 48 hours here</h4>${chartsHTML(ser, S.cur < S.nPast ? S.cur : n)}
     <button id="pchartdl" class="wide">⬇ Download these charts as a picture (for slides)</button>
     <p class="muted small">Model values are averages over a square about 200 km (125 mi) wide. Hills, lakes and the coast are <i>not</i> in them — that is part of what you add with your own reasoning.</p>`;
+  document.dispatchEvent(new Event('cardrender'));
 }
 
 // ---- charts as a standalone PNG the student can drop into slides (inline styles, white background, no outside files)

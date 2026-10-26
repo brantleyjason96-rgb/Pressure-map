@@ -12,8 +12,24 @@ export async function loadData() {
   S.D = D; S.LAT0 = D.lat0; S.LON0 = D.lon0; S.d = D.d; S.hours = D.hours.slice(); S.nPast = S.hours.length; S.cur = S.nPast - 1;
   const g = D.f.p[0];
   S.lats = g.map((_, i) => S.LAT0 + i * S.d); S.lons = g[0].map((_, i) => S.LON0 + i * S.d);
+  if (D.sst) D.sstA = anomaly(D.sst);
   buildTracks();
   return D;
+}
+
+// sea temperature minus the ocean average at that latitude: warm and cold currents stand out as warm and cold bands
+function anomaly(g) {
+  return g.map(row => { const ok = row.filter(v => v != null), m = ok.length ? ok.reduce((a, b) => a + b, 0) / ok.length : 0; return row.map(v => v == null ? null : Math.round((v - m) * 10) / 10); });
+}
+// how fast the 2 m temperature changes with distance (°C per 100 km). Fronts sit along bands of strong contrast.
+export function gradientGrid(i) {
+  const c = frameInfo(i); if (c.tg) return c.tg;
+  const T = S.D.f.t[i], nl = S.lats.length, nn = S.lons.length, dy = S.d * 111;
+  return c.tg = T.map((row, a) => row.map((_, b) => {
+    const a0 = Math.max(0, a - 1), a1 = Math.min(nl - 1, a + 1), b0 = (b - 1 + nn - 1) % (nn - 1), b1 = (b + 1) % (nn - 1);   // the last column repeats the first
+    const dx = S.d * 111 * Math.max(.2, Math.cos(S.lats[a] * Math.PI / 180)), gx = (T[a][b1] - T[a][b0]) / (2 * dx), gy = (T[a1][b] - T[a0][b]) / ((a1 - a0) * dy);
+    return Math.round(Math.hypot(gx, gy) * 1000) / 10;
+  }));
 }
 
 // Teacher mode: append the decrypted forecast frames (same grid). Never persisted.
@@ -26,7 +42,9 @@ export function sample(f, lat, lon) { // bilinear; NaN outside the grid
   const y = (lat - S.LAT0) / S.d, x = (lon - S.LON0) / S.d;
   if (y < 0 || x < 0 || y > S.lats.length - 1 || x > S.lons.length - 1) return NaN;
   const i = Math.min(Math.floor(y), S.lats.length - 2), j = Math.min(Math.floor(x), S.lons.length - 2), fy = y - i, fx = x - j;
-  return (f[i][j] * (1 - fx) + f[i][j + 1] * fx) * (1 - fy) + (f[i + 1][j] * (1 - fx) + f[i + 1][j + 1] * fx) * fy;
+  const a = f[i][j], b = f[i][j + 1], c = f[i + 1][j], d = f[i + 1][j + 1];
+  if (a == null || b == null || c == null || d == null) return NaN;     // sea-temperature grids have gaps over land
+  return (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy;
 }
 const cr = (p0, p1, p2, p3, t) => p1 + .5 * t * (p2 - p0 + t * (2 * p0 - 5 * p1 + 4 * p2 - p3 + t * (3 * (p1 - p2) + p3 - p0)));
 export function cubic(f, lat, lon) { // Catmull-Rom: smooth enough for contours

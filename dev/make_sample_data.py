@@ -1,7 +1,11 @@
 """Write SYNTHETIC data in the same format as gfs_to_json.py, so the app can be developed and previewed offline.
 Not real weather. Usage: python3 dev/make_sample_data.py   (teacher password for data/teacher.enc is "sample")"""
 import base64, gzip, json, os
+import datetime
 import numpy as np
+
+T0 = datetime.datetime.now(datetime.timezone.utc).replace(minute=0, second=0, microsecond=0)
+T0 = T0.replace(hour=T0.hour // 6 * 6) - datetime.timedelta(hours=6)
 
 LAT0, LON0, D = -90, -180, 2
 lat = np.arange(-90, 91, D)[:, None] * np.ones((1, 181))
@@ -25,8 +29,7 @@ def frame(h, localhr_offset=0):
         p = p + amp * np.exp(-dist2(la + vn * h, lo + ve * h, la + vn * h, lo + ve * h) * 0 -
                              dist2(0, 0, 0, 0) * 0 - ((lat - (la + vn * h)) ** 2 + (((lon - (lo + ve * h) + 180) % 360 - 180) * np.cos(lat * K)) ** 2) / (2 * rad ** 2))
     # temperature: warm tropics, cold poles, diurnal swing following the sun, cold air west of each low
-    solar = (h + 12) % 24
-    t = 28 - 0.45 * np.abs(lat) - 0.0012 * lat ** 2 / 2 * 0 + 4 * np.cos(((solar + lon / 15) % 24 - 15) * 2 * np.pi / 24)
+    t = 28 - 0.45 * np.abs(lat) - 0.0012 * lat ** 2 / 2 * 0 + 5 * np.cos((((T0.hour + h) + lon / 15) % 24 - 15) * 2 * np.pi / 24)
     for la, lo, ve, vn, amp, rad in SYSTEMS:
         if amp < 0:
             dl = (lon - (lo + ve * h) + 180) % 360 - 180
@@ -48,17 +51,33 @@ def frame(h, localhr_offset=0):
     return {"p": r(p, 1), "t": r(t, 1), "d": r(d, 1), "u": r(u, 1), "v": r(v, 1), "h5": r(h5, 0), "w5": r(w5, 0), "pr": r(pr, 1)}
 
 
+def make_sst():
+    """Crude continents + sea temperatures that fall off with latitude, with warm/cold bands along data/currents.json."""
+    boxes = [(32, 49, -124, -67), (49, 70, -141, -55), (15, 32, -105, -82), (60, 72, -168, -141), (-55, 12, -80, -35), (35, 71, -10, 40), (10, 75, 40, 142), (31, 45, 130, 145), (-35, 37, -17, 51),
+             (-39, -11, 113, 154), (-90, -65, -180, 180), (60, 84, -75, -12)]
+    land = np.zeros(lat.shape, bool)
+    for la0, la1, lo0, lo1 in boxes: land |= (lat >= la0) & (lat <= la1) & (lon >= lo0) & (lon <= lo1)
+    sst = np.maximum(-1.8, 29 * np.cos(lat * K) ** 1.3 - 1)
+    for c in json.load(open("data/currents.json"))["currents"]:
+        amp, f = (3.5 if c["kind"] == "warm" else -3.5), np.zeros(lat.shape)
+        for path in c["paths"]:
+            for (a0, o0), (a1, o1) in zip(path[:-1], path[1:]):
+                for t in np.linspace(0, 1, 6):
+                    la, lo = a0 + (a1 - a0) * t, o0 + (o1 - o0) * t
+                    f = np.maximum(f, np.exp(-((lat - la) ** 2 + (((lon - lo + 180) % 360 - 180) * np.cos(la * K)) ** 2) / (2 * 3.0 ** 2)))
+        sst = sst + amp * f
+    return [[None if land[i, j] else round(float(sst[i, j]), 1) for j in range(181)] for i in range(91)]
+
+
 def pack(hours):
     fr = [frame(h) for h in hours]
     return {k: [f[k] for f in fr] for k in fr[0]}
 
 
-import datetime
-t0 = datetime.datetime.now(datetime.timezone.utc).replace(minute=0, second=0, microsecond=0)
-t0 = t0.replace(hour=t0.hour // 6 * 6) - datetime.timedelta(hours=6)
+t0 = T0
 grid = {"lat0": LAT0, "lon0": LON0, "d": D}
 os.makedirs("data", exist_ok=True)
-json.dump({"cycle": t0.isoformat(), "hours": PAST, **grid, "sample": True, "f": pack(PAST)}, open("data/pressure.json", "w"), separators=(",", ":"))
+json.dump({"cycle": t0.isoformat(), "hours": PAST, **grid, "sample": True, "sst": make_sst(), "f": pack(PAST)}, open("data/pressure.json", "w"), separators=(",", ":"))
 print("wrote data/pressure.json (SAMPLE)")
 try:
     from cryptography.hazmat.primitives import hashes

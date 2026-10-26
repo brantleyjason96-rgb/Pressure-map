@@ -13,7 +13,7 @@ import numpy as np, pygrib
 
 PAST = list(range(-48, 1, 6))      # hours relative to the newest cycle; 0 = newest analysis
 FUTURE = list(range(6, 97, 6))     # teacher file only (96 h so Day 3 is covered whenever the cycle is a few hours old)
-ALL_VARS = "var_PRMSL=on&var_APCP=on&var_HGT=on&var_UGRD=on&var_VGRD=on&var_TMP=on&var_DPT=on"
+ALL_VARS = "var_PRMSL=on&var_APCP=on&var_HGT=on&var_UGRD=on&var_VGRD=on&var_TMP=on&var_DPT=on&var_LAND=on&var_ICEC=on"
 LEVELS = "lev_mean_sea_level=on&lev_surface=on&lev_500_mb=on&lev_10_m_above_ground=on&lev_2_m_above_ground=on"
 KEYS = {("prmsl", 0): "p", ("gh", 500): "z5", ("u", 500): "u5", ("v", 500): "v5", ("2t", 2): "t2", ("2d", 2): "d2",
         ("10u", 10): "u10", ("10v", 10): "v10"}
@@ -35,6 +35,11 @@ def fetch(t, fh, precip_only=False):
             if m.shortName == "tp":  # want the 6-hour bucket (GFS also writes 0-N h totals)
                 a, b = map(int, m.stepRange.split("-"))
                 if b - a == 6: key = "pr"
+            if not key and m.typeOfLevel == "surface":  # skin temperature, land mask and sea-ice fraction (for sea-surface temperature)
+                nm = m.name.lower()
+                if m.shortName in ("t", "skt") or nm in ("temperature", "skin temperature"): key = "tsfc"
+                elif m.shortName in ("lsm", "landn") or nm.startswith("land"): key = "land"
+                elif m.shortName == "ci" or nm.startswith("ice"): key = "ice"
             if not key or (precip_only and key != "pr"): continue
             lat = m.latlons()[0]
             v = m.values
@@ -72,6 +77,15 @@ def fields_for(r, pr):
             "pr": encode(to_pm180(smooth(pr, 1)), 1) if pr is not None else None}
 
 
+def make_sst(r):
+    """Sea-surface temperature (deg C) on the 2-degree grid, None over land and sea ice. Analysis only (newest cycle). Returns None
+    if the NOAA file did not have the fields, in which case the map simply hides the sea-temperature layers."""
+    if not all(k in r for k in ("tsfc", "land", "ice")): return None
+    sea = (r["land"] < 0.5) & (r["ice"] < 0.15)
+    g = to_pm180(np.where(sea, r["tsfc"] - 273.15, np.nan))   # no smoothing, so coastlines stay sharp
+    return [[None if np.isnan(v) else round(float(v), 1) for v in row] for row in g]
+
+
 def collect(frames):
     out = {k: [] for k in ("p", "t", "d", "u", "v", "h5", "w5", "pr")}
     for fr in frames:
@@ -89,6 +103,7 @@ for back in range(0, 30, 6):
         for h in PAST:
             tv = t0 + timedelta(hours=h)
             r = fetch(tv, 0)
+            if h == 0: raw0 = r
             rain = fetch(tv - timedelta(hours=6), 6, precip_only=True).get("pr")
             past.append(fields_for(r, rain))
         break
@@ -100,7 +115,9 @@ else:
 assert max(PAST) == 0 and t0 <= datetime.now(timezone.utc), "public file must never contain forecast frames"
 os.makedirs("data", exist_ok=True)
 grid = {"lat0": -90, "lon0": -180, "d": 2}
-json.dump({"cycle": t0.isoformat(), "hours": PAST, **grid, "f": collect(past)},
+sst = make_sst(raw0)
+print("sea-surface temperature:", "ok" if sst else "NOT available (layers will be hidden)")
+json.dump({"cycle": t0.isoformat(), "hours": PAST, **grid, "sst": sst, "f": collect(past)},
           open("data/pressure.json", "w"), separators=(",", ":"))
 print("wrote data/pressure.json for cycle", t0, "past frames only:", PAST)
 

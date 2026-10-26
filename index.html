@@ -27,7 +27,8 @@
       <nav id="tabs">
         <button data-tab="explore" class="on">1 · Explore</button>
         <button data-tab="place">2 · My Place</button>
-        <button data-tab="notes">3 · My Notes</button>
+        <button data-tab="local">3 · Local</button>
+        <button data-tab="notes">4 · Notes</button>
         <button data-tab="teacher" hidden>Teacher</button>
       </nav>
     </header>
@@ -41,6 +42,9 @@
         <option value="t">Temperature</option>
         <option value="d">Dewpoint (how humid)</option>
         <option value="pr">Rain in the 6 h before</option>
+        <option value="tg">Temperature contrast (find the fronts)</option>
+        <option value="sst">Sea-surface temperature</option>
+        <option value="sstA">Sea temperature vs. normal (shows currents)</option>
         <option value="w5">Jet stream (500 mb wind speed)</option>
         <option value="none">None</option>
       </select>
@@ -53,6 +57,13 @@
       <label><input type="checkbox" id="wind"> Wind arrows (model winds)</label>
       <label><input type="checkbox" id="fr" checked> Fronts (NOAA, North America)</label>
       <label><input type="checkbox" id="stt" checked> Borders</label>
+      <label><input type="checkbox" id="cur"> Ocean currents (red = warm, blue = cold)</label>
+      <h4>Tools</h4>
+      <div class="inline"><button id="ruler">📏 Measure distance</button><span id="rulerout" class="small"></span></div>
+      <div class="inline"><select id="ftype" aria-label="Front type"><option>Cold Front</option><option>Warm Front</option><option>Stationary Front</option><option>Occluded Front</option><option>Trough</option></select>
+        <button id="fdraw">✏️ Draw a front</button></div>
+      <div class="inline"><button id="ffinish" hidden>✔ Finish front</button><button id="fundo" class="ghost">Undo</button><button id="fclear" class="ghost">Clear my fronts</button></div>
+      <p id="fhelp" class="small muted"></p>
       <h4>Base map</h4>
       <select id="base"><option value="dark">Dark</option><option value="terrain">Terrain (mountains)</option></select>
       <div id="legend"></div><div class="row"><span id="l0"></span><span id="l1"></span><span id="l2"></span></div>
@@ -85,6 +96,18 @@
       <details id="pstartd" open><summary>Or choose from a list of good places to study</summary><div id="pstart" class="starters"></div></details>
       <label class="block">Place name <input id="pname" placeholder="(choose a place first)"></label>
       <div id="pcard"></div>
+    </section>
+
+    <section id="tab-local" class="tab" hidden>
+      <h3>Local effects at my place</h3>
+      <p class="muted small">The big map shows the large weather patterns. Mountains and coasts add local effects the model can’t see. Use these tools to decide how they change <i>your</i> forecast.</p>
+      <p id="lplace" class="small"></p>
+      <details class="topic" open><summary>⛰️ Mountains: windward and leeward</summary>
+        <p id="mnone" class="muted small">Choose a place on the My Place tab first.</p><div id="mbody" hidden></div></details>
+      <details class="topic" open><summary>🌊 Coast: land and sea breeze</summary>
+        <p id="cnone" class="muted small">Choose a place on the My Place tab first.</p><div id="cbody" hidden></div></details>
+      <details class="topic" open><summary>🌀 Ocean currents</summary>
+        <p id="curnone" class="muted small">Choose a place on the My Place tab first.</p><div id="curbody" hidden></div></details>
     </section>
 
     <section id="tab-notes" class="tab" hidden>

@@ -18,6 +18,27 @@ from the information on the map: highs and lows, fronts, land/sea breeze, windwa
 Unlocked, the time slider continues past "Now" into orange FORECAST frames, the Teacher tab shows the model's highs/lows/wind/rain
 for a place (pick a student's place on My Place), plus every 6 hours of the model forecast, to check their presentation. Reloading the page locks it again.
 
+## Local effects (mountains and coast)
+The **Local** tab has two tools. Both use only the present wind and temperatures, the past 48 hours, and fixed geography.
+- **Windward / leeward.** Cuts a terrain profile along the wind through the place (elevation from Open-Meteo), says whether the
+  place is on the windward or leeward side of the nearest range, and steps an air parcel over the ridge (cooling, cloud base,
+  rain, then warming and drying on the far side). Students can change the wind direction or the starting air, or draw their own
+  cross-section on the map.
+- **Land and sea breeze.** Finds the nearest sea or large lake (Natural Earth coastlines), shows a day/night cross-section driven by
+  the place's own daily temperature cycle, and a checklist of what a breeze needs (near water, weak background wind, big daytime heating).
+
+## Ocean currents and fronts
+- **Currents.** `data/currents.json` is a fixed, simplified teaching map of 21 major surface currents (path, warm or cold, plain-language
+  weather effects). The Explore tab can draw them (click one for its description) and shade **sea-surface temperature** or **sea
+  temperature vs. normal for the latitude**, which shows warm and cold currents as bands. The Local tab's **Ocean currents** tool finds
+  the nearest current, the sea temperature offshore from the place, and compares the water with the air (fog, showers, or neither).
+  Sea temperature comes from NOAA GFS surface temperature over ocean (the newest analysis only). If NOAA's file lacks those fields,
+  the pipeline writes `sst: null` and the sea-temperature layers are hidden.
+- **Fronts.** The **Temperature contrast** shading highlights bands where temperature changes fast, which is where fronts sit.
+  A **ruler** measures distance and direction. **Draw a front** lets students mark fronts anywhere on Earth (outside the NOAA North
+  America chart too). The My Place card lists the nearest fronts (NOAA and student-drawn) and a distance ÷ speed arrival calculator
+  where the student supplies the speed.
+
 ## Student notes
 Students present their forecast themselves, so there is no forecast form. The **My Notes** tab collects evidence by topic
 (highs and lows, fronts, breeze, windward/leeward, currents). The 📌 buttons on the map and the place card pin what the
