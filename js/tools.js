@@ -57,20 +57,22 @@ function nearestFronts(pl) {
     const best = lines.map(l => line(l.map(([x, y]) => [y, x]))).filter(Boolean).reduce((a, b) => !a || b.km < a.km ? b : a, null);
     if (best) out.push({ src: 'NOAA', type: t, ...best });
   }
+  for (const f of (S.D.fr && S.D.fr[S.nPast - 1]) || []) { const b = line(f.p); if (b) out.push({ src: 'model', type: f.t, ...b }); }   // found by computer, worldwide
   for (const f of drawn.filter(f => f.t === key(S.nPast - 1))) { const b = line(f.pts); if (b) out.push({ src: 'mine', type: f.type, ...b }); }
   return out.sort((a, b) => a.km - b.km).slice(0, 4);
 }
+const who = f => f.src === 'mine' ? 'My' : f.src === 'model' ? 'Computer-found' : 'NOAA';
 function fillFronts() {
   const el = $('pfronts'); if (!el) return;
   const pl = P.place; if (!pl || !S.D) { el.innerHTML = ''; return; }
   const list = nearestFronts(pl), when = frameTime(S.nPast - 1).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'UTC' }) + ' UTC';
-  if (!list.length) { el.innerHTML = `<h4>Fronts near you</h4><p class="muted small">No fronts are loaded for this area (the NOAA chart covers North America). On the Explore tab, use <b>Temperature contrast</b> shading to find them, then <b>Draw a front</b>. Fronts you draw will be measured here.</p>`; return; }
+  if (!list.length) { el.innerHTML = `<h4>Fronts near you</h4><p class="muted small">No fronts were found near here. On the Explore tab, use <b>Temperature contrast</b> shading to find them, then <b>Draw a front</b>. Fronts you draw will be measured here.</p>`; return; }
   const near = list[0], kmh = () => U.sys === 'us' ? speed / 0.6214 : speed;
   el.innerHTML = `<h4>Fronts near you</h4><ul class="sys">` + list.map(f => {
-    const txt = `${f.src === 'mine' ? 'My' : 'NOAA'} ${NAMES[f.type]}: ${fmtD(f.km)} to the ${compass(f.toward)} of ${pl.name} (${when})`;
-    return `<li><b>${f.src === 'mine' ? 'My ' : ''}${esc(NAMES[f.type])}</b>: ${esc(fmtD(f.km))} to the ${compass(f.toward)}. <button class="pinbtn" data-topic="front" data-text="${esc(txt + '.')}">📌 Add to notes</button></li>`;
+    const txt = `${who(f)} ${NAMES[f.type]}: ${fmtD(f.km)} to the ${compass(f.toward)} of ${pl.name} (${when})`;
+    return `<li><b>${esc(who(f))} ${esc(NAMES[f.type])}</b>: ${esc(fmtD(f.km))} to the ${compass(f.toward)}. <button class="pinbtn" data-topic="front" data-text="${esc(txt + '.')}">📌 Add to notes</button></li>`;
   }).join('') + `</ul>
-    <div class="calc">If the nearest front (the ${esc(NAMES[near.type])}, ${esc(fmtD(near.km))} away) moved straight toward you at
+    <div class="calc">If the nearest front (the ${esc(who(near).toLowerCase())} ${esc(NAMES[near.type])}, ${esc(fmtD(near.km))} away) moved straight toward you at
       <input type="number" id="fspd" min="1" step="1" value="${speed}" aria-label="Front speed in ${U.sys === 'us' ? 'miles per hour' : 'kilometers per hour'}"> ${U.sys === 'us' ? 'mph' : 'km/h'}, it would arrive in about <b id="fhrs"></b>.
       <small class="muted">distance ÷ speed. Estimate the speed yourself from the 48-hour loop.</small></div>`;
   const calc = () => { const h = near.km / Math.max(1, kmh()); $('fhrs').textContent = h < 48 ? `${h.toFixed(1)} hours` : `${(h / 24).toFixed(1)} days`; };

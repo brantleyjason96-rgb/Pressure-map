@@ -75,7 +75,8 @@
         <label><input type="checkbox" id="hl" checked> H / L centers</label>
         <label><input type="checkbox" id="trk" checked> Where each H and L has been (dotted trail)</label>
         <label><input type="checkbox" id="wind"> Wind arrows (model winds)</label>
-        <label><input type="checkbox" id="fr" checked> Fronts (NOAA, North America)</label>
+        <label><input type="checkbox" id="frd" checked> Fronts found by computer (worldwide)</label>
+        <label><input type="checkbox" id="fr" checked> Fronts drawn by NOAA forecasters (North America)</label>
         <label><input type="checkbox" id="cur"> Ocean currents (red = warm, blue = cold)</label>
         <label><input type="checkbox" id="stt" checked> Borders</label>
         <div class="key">
@@ -83,6 +84,7 @@
           <span style="color:#b043ff">▲●</span> occluded &nbsp;<span style="color:#3b82ff">▲</span><span style="color:#ff3b3b">●</span> stationary &nbsp;<span style="color:#d9a066">- - -</span> trough
         </div>
         <p id="frnote" class="muted small"></p>
+        <p class="muted small">Computer-found fronts are drawn thinner and come from the model’s temperature and humidity at about 5,000 ft (850 mb), so they are rough: they can miss a front or add one that isn’t there. They are on every map in the 48-hour loop, so you can watch them move.</p>
       </details>
 
       <details class="grp" open><summary>🧰 Tools</summary>
@@ -101,7 +103,7 @@
         <p><b>Isobars</b> connect points with equal pressure. Lines close together = big pressure change over a short distance = <b>strong wind</b>.</p>
         <p><b>Wind</b> blows from high toward low pressure, but Earth’s rotation bends it: in the <b>Northern Hemisphere</b> clockwise &amp; outward around a High, counterclockwise &amp; inward around a Low. In the <b>Southern Hemisphere</b> it is the opposite.</p>
         <p><b>Highs</b>: air sinks → clear, calm. <b>Lows</b>: air rises → clouds and precipitation.</p>
-        <p><b>Fronts</b> are boundaries between air masses. The symbols point the way the front is moving.</p>
+        <p><b>Fronts</b> are boundaries between air masses. The symbols point the way the front is moving. Forecasters draw them by hand for North America (thick lines). A computer finds them for the whole world by looking for the sharpest temperature and moisture change (thin lines).</p>
         <p><b>Dotted trails</b> show where each High and Low was over the last 48 hours. <b>Click an H or L</b> to see how fast and which way it is moving.</p>
         <p><b>Jet stream</b>: the fast river of air near 18,000 ft (500 mb) that steers Lows and fronts.</p>
         <p><b>Click anywhere</b> for the values at that spot, then choose it as your place.</p>

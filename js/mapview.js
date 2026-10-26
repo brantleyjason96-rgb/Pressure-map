@@ -73,7 +73,8 @@ const Cv = L.Layer.extend({
     if (on('trk')) this.tracks(g);
     if (on('wind')) this.wind(g);
     if (on('hl')) this.hl(g, info.ex);
-    if (on('fr') && fronts && S.cur === S.nPast - 1) this.drawFronts(g, fronts.gj);
+    if (on('frd')) { info.frf ||= (S.D.fr[S.cur] || []).map(f => ({ geometry: { type: 'LineString', coordinates: f.p.map(([la, lo]) => [lo, la]) }, properties: { feat: f.t } })); if (info.frf.length) this.drawFronts(g, { features: info.frf }, { alpha: .85, w: 2, sp: 30 }); }   // computer-detected, worldwide
+    if (on('fr') && fronts && S.cur === S.nPast - 1) this.drawFronts(g, fronts.gj);   // NOAA hand-drawn, North America
     for (const fn of Object.values(view.layers)) fn(g, m, this);
     if (view.section && view.localOn) this.section(g);   // the Local tab's wind line and coast marker only show while that tab is open
     if (view.coast && view.localOn) this.coast(g);
@@ -152,13 +153,13 @@ const Cv = L.Layer.extend({
     g.lineWidth = 2.5; g.strokeStyle = '#4aa3ff'; g.setLineDash([6, 5]); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); g.setLineDash([]);
     g.font = '18px system-ui'; g.textAlign = 'center'; g.fillText('🌊', b.x, b.y + 6);
   },
-  drawFronts(g, gj) {
-    const SP = 26;
+  drawFronts(g, gj, opt = {}) {
+    const SP = opt.sp ?? 26; g.globalAlpha = opt.alpha ?? 1;
     for (const f of gj.features) {
       const type = frType(f), col = FCOL[type] || '#fff';
       for (const P of frLines(f, this._m)) {
         if (view.hint && view.hint.feat === f) { g.lineWidth = 9; g.strokeStyle = '#ffd23f'; g.beginPath(); P.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.stroke(); }
-        g.lineWidth = 2.5; g.strokeStyle = col; g.setLineDash(type === 'Trough' ? [8, 6] : []);
+        g.lineWidth = opt.w ?? 2.5; g.strokeStyle = col; g.setLineDash(type === 'Trough' ? [8, 6] : []);
         g.beginPath(); P.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.stroke(); g.setLineDash([]);
         if (type === 'Trough') continue;
         let acc = SP / 2, n = 0;
@@ -174,6 +175,7 @@ const Cv = L.Layer.extend({
         }
       }
     }
+    g.globalAlpha = 1;
   },
   sym(g, x, y, ang, kind, col) {
     g.save(); g.translate(x, y); g.rotate(ang); g.fillStyle = col; g.beginPath();
@@ -269,8 +271,9 @@ export function initMap() {
   let timer = null;
   $('play').onclick = () => {
     if (timer) { clearInterval(timer); timer = null; $('play').textContent = '▶ Play'; return; }
-    $('play').textContent = '❚❚ Pause'; if (S.cur >= S.nPast - 1) setFrame(0);
-    timer = setInterval(() => { if (S.cur >= S.nPast - 1) { clearInterval(timer); timer = null; $('play').textContent = '▶ Play'; return; } setFrame(S.cur + 1); }, 800);
+    $('play').textContent = '❚❚ Pause'; if (S.cur >= S.hours.length - 1) setFrame(0);
+    const stop = () => { clearInterval(timer); timer = null; $('play').textContent = '▶ Play'; };
+    timer = setInterval(() => { if (S.cur >= S.hours.length - 1) return stop(); setFrame(S.cur + 1); if (S.cur >= S.hours.length - 1) stop(); }, 800);
   };
   document.addEventListener('units', () => { if (S.D) { legend(); layer.draw(); } });
   legend();
