@@ -1,0 +1,74 @@
+"""Write SYNTHETIC data in the same format as gfs_to_json.py, so the app can be developed and previewed offline.
+Not real weather. Usage: python3 dev/make_sample_data.py   (teacher password for data/teacher.enc is "sample")"""
+import base64, gzip, json, os
+import numpy as np
+
+LAT0, LON0, D = -90, -180, 2
+lat = np.arange(-90, 91, D)[:, None] * np.ones((1, 181))
+lon = np.ones((91, 1)) * np.arange(-180, 181, D)[None, :]
+K = np.pi / 180
+PAST, FUTURE = list(range(-48, 1, 6)), list(range(6, 97, 6))
+# (lat, lon at hour 0, deg east per hour, deg north per hour, hPa amplitude, radius deg)  - negative amp = low
+SYSTEMS = [(48, -92, .33, .05, -26, 11), (43, -140, .30, .03, -20, 10), (55, -30, .25, .06, -30, 13), (35, 150, .35, .02, -17, 10),
+           (36, -125, .08, -.02, 20, 14), (33, -45, .05, 0, 18, 15), (52, -108, -.05, -.05, 16, 9), (-45, 60, .4, 0, -24, 12),
+           (-40, -120, .3, .02, -18, 11), (-30, -95, .05, 0, 17, 14), (-32, 25, .06, 0, 16, 12), (-55, -30, .35, 0, -28, 12)]
+
+
+def dist2(la, lo, la0, lo0):
+    dl = (lon - lo0 + 180) % 360 - 180
+    return (lat - la0) ** 2 + (dl * np.cos(lat * K)) ** 2
+
+
+def frame(h, localhr_offset=0):
+    p = 1013 + 4 * np.cos(lat * K * 4) * (np.abs(lat) < 70)
+    for la, lo, ve, vn, amp, rad in SYSTEMS:
+        p = p + amp * np.exp(-dist2(la + vn * h, lo + ve * h, la + vn * h, lo + ve * h) * 0 -
+                             dist2(0, 0, 0, 0) * 0 - ((lat - (la + vn * h)) ** 2 + (((lon - (lo + ve * h) + 180) % 360 - 180) * np.cos(lat * K)) ** 2) / (2 * rad ** 2))
+    # temperature: warm tropics, cold poles, diurnal swing following the sun, cold air west of each low
+    solar = (h + 12) % 24
+    t = 28 - 0.45 * np.abs(lat) - 0.0012 * lat ** 2 / 2 * 0 + 4 * np.cos(((solar + lon / 15) % 24 - 15) * 2 * np.pi / 24)
+    for la, lo, ve, vn, amp, rad in SYSTEMS:
+        if amp < 0:
+            dl = (lon - (lo + ve * h) + 180) % 360 - 180
+            t = t - 6 * np.exp(-((lat - la - vn * h) ** 2 + (dl + 8) ** 2) / (2 * 9 ** 2)) + 5 * np.exp(-((lat - la - vn * h + 6) ** 2 + (dl - 10) ** 2) / (2 * 8 ** 2))
+    d = t - 3 - 6 * (1 - np.exp(-np.abs(lat) / 40)) * 0.6
+    # wind from the pressure gradient (geostrophic, then friction), capped
+    dpdy = np.gradient(p, axis=0) * 100 / (D * K * 6371e3)
+    dpdx = np.gradient(p, axis=1) * 100 / (D * K * 6371e3 * np.cos(np.clip(lat, -80, 80) * K))
+    f = 2 * 7.292e-5 * np.sin(lat * K); f = np.where(np.abs(lat) < 12, np.sign(f + 1e-9) * 2 * 7.292e-5 * np.sin(12 * K), f)
+    ug, vg = -dpdy / (1.2 * f), dpdx / (1.2 * f)
+    th = np.where(lat >= 0, 30, -30) * K
+    u, v = .6 * (ug * np.cos(th) - vg * np.sin(th)), .6 * (ug * np.sin(th) + vg * np.cos(th))
+    sp = np.hypot(u, v); cap = np.minimum(1, 28 / np.maximum(sp, 1e-6)); u, v = u * cap, v * cap
+    h5 = 5750 - 9 * (np.abs(lat) - 30) + 25 * (p - 1013) * np.exp(-((np.abs(lat) - 45) / 25) ** 2) + 40 * np.sin((lon + 3 * h) * K * 3) * (np.abs(lat) > 25)
+    w5 = np.clip(20 + 90 * np.exp(-((np.abs(lat) - 42) / 12) ** 2) * (1 + .3 * np.sin((lon + 3 * h) * K * 3)), 0, 160)
+    pr = np.clip((1010 - p) / 4, 0, 40) * (np.abs(lat) > 8) * (0.5 + 0.5 * np.sin(lon * K * 5 + h / 5))
+    pr = np.where(pr > 0.3, pr, 0)
+    r = lambda a, n: np.round(a, n).tolist() if n else np.round(a).astype(int).tolist()
+    return {"p": r(p, 1), "t": r(t, 1), "d": r(d, 1), "u": r(u, 1), "v": r(v, 1), "h5": r(h5, 0), "w5": r(w5, 0), "pr": r(pr, 1)}
+
+
+def pack(hours):
+    fr = [frame(h) for h in hours]
+    return {k: [f[k] for f in fr] for k in fr[0]}
+
+
+import datetime
+t0 = datetime.datetime.now(datetime.timezone.utc).replace(minute=0, second=0, microsecond=0)
+t0 = t0.replace(hour=t0.hour // 6 * 6) - datetime.timedelta(hours=6)
+grid = {"lat0": LAT0, "lon0": LON0, "d": D}
+os.makedirs("data", exist_ok=True)
+json.dump({"cycle": t0.isoformat(), "hours": PAST, **grid, "sample": True, "f": pack(PAST)}, open("data/pressure.json", "w"), separators=(",", ":"))
+print("wrote data/pressure.json (SAMPLE)")
+try:
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+    plain = gzip.compress(json.dumps({"cycle": t0.isoformat(), "hours": FUTURE, **grid, "f": pack(FUTURE)}, separators=(",", ":")).encode())
+    salt, iv, iters = os.urandom(16), os.urandom(12), 250000
+    key = PBKDF2HMAC(hashes.SHA256(), 32, salt, iters).derive(b"sample")
+    b = lambda x: base64.b64encode(x).decode()
+    json.dump({"v": 1, "iters": iters, "salt": b(salt), "iv": b(iv), "ct": b(AESGCM(key).encrypt(iv, plain, None))}, open("data/teacher.enc", "w"))
+    print('wrote data/teacher.enc (SAMPLE, password "sample")')
+except ImportError:
+    print("cryptography not installed; skipped teacher.enc")
