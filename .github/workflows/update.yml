@@ -13,9 +13,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
-      - run: pip install pygrib numpy
+      - run: pip install pygrib numpy cryptography
       - run: mkdir -p data && python gfs_to_json.py   # data stays out of git history; it only lives in the deployed site
-      - run: mkdir site && cp index.html site/ && cp -r data site/
+        env:
+          TEACHER_PASSWORD: ${{ secrets.TEACHER_PASSWORD }}   # optional: encrypts the forecast for the Teacher view
+      - run: mkdir site && cp -r index.html css js data site/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: {path: site}
