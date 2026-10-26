@@ -27,7 +27,7 @@
       <nav id="tabs">
         <button data-tab="explore" class="on">1 · Explore</button>
         <button data-tab="place">2 · My Place</button>
-        <button data-tab="forecast">3 · My Forecast</button>
+        <button data-tab="notes">3 · My Notes</button>
         <button data-tab="teacher" hidden>Teacher</button>
       </nav>
     </header>
@@ -87,20 +87,27 @@
       <div id="pcard"></div>
     </section>
 
-    <section id="tab-forecast" class="tab" hidden>
-      <h3>My 3-day forecast</h3>
-      <p class="muted small">Nothing here is filled in for you. Use the map, your place’s numbers and the normals to <b>make your own forecast</b>.</p>
-      <label class="block">My name <input id="fname" placeholder="First and last name"></label>
-      <div id="fprog" class="prog"></div>
-      <div id="fdays"></div>
-      <h3>Explain the science</h3>
-      <div id="fconcepts"></div>
-      <div class="actions">
-        <button id="fprint" class="primary">🖨 Print / Save as PDF</button>
-        <button id="fsave">Save my forecast file</button>
-        <label class="filebtn">Open a saved file<input type="file" id="fload" accept=".json"></label>
-        <button id="freset" class="ghost">Start over</button>
+    <section id="tab-notes" class="tab" hidden>
+      <h3>My notes</h3>
+      <p class="muted small">Collect your evidence here while you work, then build your presentation. Use the <b>📌 Add to notes</b> buttons on the map and the My Place tab to save what you find. The forecast itself is yours to make and present.</p>
+      <label class="block">My name <input id="nname" placeholder="First and last name"></label>
+      <p id="nplace" class="small muted"></p>
+      <div id="ncover" class="cover"></div>
+      <div class="addnote">
+        <label class="block">Add a note about <select id="ntopic"></select></label>
+        <p id="nask" class="ask"></p>
+        <div id="nframes" class="frames"></div>
+        <textarea id="ntext" rows="4" placeholder="Write your note…"></textarea>
+        <button id="nadd" class="primary wide">Add note</button>
       </div>
+      <div id="nlist"></div>
+      <div class="actions">
+        <button id="nprint" class="primary">🖨 Print / Save as PDF</button>
+        <button id="ncopy">Copy all notes</button>
+        <button id="ndl">Download notes</button>
+        <button id="nclear" class="ghost">Delete all</button>
+      </div>
+      <p class="muted small">Tip for slides: on the My Place tab, “Download these charts as a picture” gives you a clean image of your place’s past 48 hours. To capture the map, use your device’s screenshot tool.</p>
     </section>
 
     <section id="tab-teacher" class="tab" hidden><div id="tbody"></div></section>

@@ -2,7 +2,7 @@ import { $, U, setUnits } from './util.js';
 import { S, loadData } from './data.js';
 import { initMap, setFrame, loadFronts } from './mapview.js';
 import { initPlace } from './place.js';
-import { initForecast } from './forecast.js';
+import { initNotes } from './notes.js';
 import { initTeacher } from './teacher.js';
 import { initQuiz } from './quiz.js';
 
@@ -24,7 +24,7 @@ initTeacher();
     $('slider').max = S.hours.length - 1;
     $('st').textContent = 'Model analysis through ' + new Date(Date.parse(D.cycle)).toUTCString().slice(5, 22) + ' UTC';
     if (D.sample) $('samplebanner').hidden = false;
-    initQuiz(); initPlace(); initForecast();
+    initQuiz(); initPlace(); initNotes();
     setFrame(S.cur);
     loadFronts();
   } catch (e) { $('st').textContent = 'Could not load the weather data: ' + e.message; }
