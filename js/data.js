@@ -12,7 +12,7 @@ export async function loadData() {
   S.D = D; S.LAT0 = D.lat0; S.LON0 = D.lon0; S.d = D.d; S.hours = D.hours.slice(); S.nPast = S.hours.length; S.cur = S.nPast - 1;
   const g = D.f.p[0];
   S.lats = g.map((_, i) => S.LAT0 + i * S.d); S.lons = g[0].map((_, i) => S.LON0 + i * S.d);
-  if (D.sst) D.sstA = anomaly(D.sst);
+  D.fr = D.fr || []; if (D.sst) D.sstA = anomaly(D.sst);
   buildTracks();
   return D;
 }
@@ -35,7 +35,7 @@ export function gradientGrid(i) {
 // Teacher mode: append the decrypted forecast frames (same grid). Never persisted.
 export function addForecast(T) {
   for (const k of Object.keys(S.D.f)) S.D.f[k].push(...T.f[k]);
-  S.hours.push(...T.hours); S.teacher = true; S.cache = []; buildTracks();
+  S.D.fr.push(...(T.fr || T.hours.map(() => []))); S.hours.push(...T.hours); S.teacher = true; S.cache = []; buildTracks();
 }
 
 export function sample(f, lat, lon) { // bilinear; NaN outside the grid

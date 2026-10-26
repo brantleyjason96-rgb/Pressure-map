@@ -6,17 +6,19 @@ data/pressure.json   PUBLIC, students load it. Holds ONLY the past: the model an
 data/teacher.enc     OPTIONAL. The 6-h .. 96-h forecast, gzipped and encrypted with AES-GCM under the passphrase in the
                      TEACHER_PASSWORD environment variable. Only written when that variable is set.
 
-Needs: pygrib numpy cryptography (cryptography only for the teacher file)."""
+Needs: pygrib numpy cryptography; frontfind.py (in this folder) finds the fronts (cryptography only for the teacher file)."""
 import base64, gzip, json, os, tempfile, urllib.request, urllib.error
 from datetime import datetime, timedelta, timezone
 import numpy as np, pygrib
+from frontfind import detect_fronts, theta_e
 
 PAST = list(range(-48, 1, 6))      # hours relative to the newest cycle; 0 = newest analysis
 FUTURE = list(range(6, 97, 6))     # teacher file only (96 h so Day 3 is covered whenever the cycle is a few hours old)
-ALL_VARS = "var_PRMSL=on&var_APCP=on&var_HGT=on&var_UGRD=on&var_VGRD=on&var_TMP=on&var_DPT=on&var_LAND=on&var_ICEC=on"
-LEVELS = "lev_mean_sea_level=on&lev_surface=on&lev_500_mb=on&lev_10_m_above_ground=on&lev_2_m_above_ground=on"
+ALL_VARS = "var_PRMSL=on&var_APCP=on&var_HGT=on&var_UGRD=on&var_VGRD=on&var_TMP=on&var_DPT=on&var_LAND=on&var_ICEC=on&var_RH=on"
+LEVELS = "lev_mean_sea_level=on&lev_surface=on&lev_500_mb=on&lev_850_mb=on&lev_10_m_above_ground=on&lev_2_m_above_ground=on"
 KEYS = {("prmsl", 0): "p", ("gh", 500): "z5", ("u", 500): "u5", ("v", 500): "v5", ("2t", 2): "t2", ("2d", 2): "d2",
-        ("10u", 10): "u10", ("10v", 10): "v10"}
+        ("10u", 10): "u10", ("10v", 10): "v10",
+        ("t", 850): "t850", ("r", 850): "r850", ("u", 850): "u850", ("v", 850): "v850"}   # 850 mb (about 5,000 ft): where fronts are found
 
 
 def fetch(t, fh, precip_only=False):
@@ -65,6 +67,13 @@ def encode(fr, nd):
     return None if fr is None else [[round(float(v), nd) if nd else int(round(v)) for v in row] for row in fr]
 
 
+def fronts_for(r):
+    """Fronts found from the 850 mb fields of one frame (1-degree grid). [] if NOAA's file lacked those fields."""
+    if not all(k in r for k in ("t850", "r850", "u850", "v850")): return []
+    th = theta_e(r["t850"], r["r850"], 850.0)
+    return detect_fronts(np.where(np.isfinite(th), th, np.nanmean(th)), r["u850"], r["v850"])
+
+
 def fields_for(r, pr):
     """Turn the raw arrays of one frame into the thinned, rounded grids the app uses. pr = 6-h precip array or None."""
     return {"p": encode(to_pm180(smooth(r["p"], 3)) / 100, 1),
@@ -99,13 +108,13 @@ for back in range(0, 30, 6):
     t0 = t0.replace(hour=t0.hour // 6 * 6)
     try:
         # past frame at hour h = analysis of the cycle at t0+h; its 6-h rain = f006 of the cycle 6 h earlier (valid at t0+h)
-        past = []
+        past, past_fr = [], []
         for h in PAST:
             tv = t0 + timedelta(hours=h)
             r = fetch(tv, 0)
             if h == 0: raw0 = r
             rain = fetch(tv - timedelta(hours=6), 6, precip_only=True).get("pr")
-            past.append(fields_for(r, rain))
+            past.append(fields_for(r, rain)); past_fr.append(fronts_for(r))
         break
     except urllib.error.URLError:
         continue
@@ -117,9 +126,9 @@ os.makedirs("data", exist_ok=True)
 grid = {"lat0": -90, "lon0": -180, "d": 2}
 sst = make_sst(raw0)
 print("sea-surface temperature:", "ok" if sst else "NOT available (layers will be hidden)")
-json.dump({"cycle": t0.isoformat(), "hours": PAST, **grid, "sst": sst, "f": collect(past)},
+json.dump({"cycle": t0.isoformat(), "hours": PAST, **grid, "sst": sst, "fr": past_fr, "f": collect(past)},
           open("data/pressure.json", "w"), separators=(",", ":"))
-print("wrote data/pressure.json for cycle", t0, "past frames only:", PAST)
+print("wrote data/pressure.json for cycle", t0, "past frames only:", PAST, "| fronts per frame:", [len(x) for x in past_fr])
 
 pw = os.environ.get("TEACHER_PASSWORD")
 if not pw:
@@ -128,11 +137,11 @@ else:
     from cryptography.hazmat.primitives import hashes
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-    fut = []
+    fut, fut_fr = [], []
     for h in FUTURE:
         r = fetch(t0, h)
-        fut.append(fields_for(r, r.get("pr")))
-    plain = gzip.compress(json.dumps({"cycle": t0.isoformat(), "hours": FUTURE, **grid, "f": collect(fut)},
+        fut.append(fields_for(r, r.get("pr"))); fut_fr.append(fronts_for(r))
+    plain = gzip.compress(json.dumps({"cycle": t0.isoformat(), "hours": FUTURE, **grid, "fr": fut_fr, "f": collect(fut)},
                                      separators=(",", ":")).encode())
     salt, iv, iters = os.urandom(16), os.urandom(12), 250000
     key = PBKDF2HMAC(hashes.SHA256(), 32, salt, iters).derive(pw.encode())

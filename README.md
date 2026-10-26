@@ -27,6 +27,15 @@ The **Local** tab has two tools. Both use only the present wind and temperatures
 - **Land and sea breeze.** Finds the nearest sea or large lake (Natural Earth coastlines), shows a day/night cross-section driven by
   the place's own daily temperature cycle, and a checklist of what a breeze needs (near water, weak background wind, big daytime heating).
 
+## Fronts worldwide
+`frontfind.py` finds fronts anywhere on Earth from the model, using the thermal front parameter on 850 mb equivalent potential temperature:
+fronts lie along the sharpest temperature and moisture change; the wind across the line gives cold, warm or stationary. The data script
+runs it on every frame, so the loop shows fronts moving. They are drawn thinner than NOAA's hand-drawn fronts (North America only), are
+rough, and are clearly labeled "computer-found". Past frames are in the public file; forecast frames are only in the encrypted teacher file.
+`python3 dev/test_frontfind.py` checks it on synthetic fronts.
+
+In the teacher view the Play button runs from 48 hours ago straight through the model forecast to +96 hours.
+
 ## Ocean currents and fronts
 - **Currents.** `data/currents.json` is a fixed, simplified teaching map of 21 major surface currents (path, warm or cold, plain-language
   weather effects). The Explore tab can draw them (click one for its description) and shade **sea-surface temperature** or **sea
