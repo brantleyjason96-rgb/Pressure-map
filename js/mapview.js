@@ -2,7 +2,7 @@
 import { $, on, range, ramp, fmtT, fmtS, fmtP, fmtRain, fmtD, windFrom, compass, esc, distKm } from './util.js';
 import { S, fld, sample, windAt, contour, frameInfo, frameTime, isForecast, motionOf } from './data.js';
 
-export const view = { hint: null, place: null, light: false };
+export const view = { hint: null, place: null, light: false, section: null, coast: null };
 export const hooks = { click: [] };            // other modules (quiz, place picker) get first look at map clicks
 export let map, layer;
 
@@ -66,6 +66,8 @@ const Cv = L.Layer.extend({
     if (on('wind')) this.wind(g);
     if (on('hl')) this.hl(g, info.ex);
     if (on('fr') && fronts && S.cur === S.nPast - 1) this.drawFronts(g, fronts.gj);
+    if (view.section) this.section(g);
+    if (view.coast) this.coast(g);
     if (view.hint && view.hint.ll) { const p = m.latLngToContainerPoint(view.hint.ll); g.strokeStyle = '#ffd23f'; g.lineWidth = 4; g.beginPath(); g.arc(p.x, p.y, 28, 0, 7); g.stroke(); }
   },
   borders(g) {
@@ -124,6 +126,22 @@ const Cv = L.Layer.extend({
       P.forEach((p, i) => (i && Math.abs(pts[i].lon - pts[i - 1].lon) < 180) ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.stroke(); g.setLineDash([]);
       P.forEach((p, i) => { if (i < P.length - 1) { g.beginPath(); g.arc(p.x, p.y, 2.5, 0, 7); g.fill(); } });
     }
+  },
+  section(g) { // the wind line used for the mountain cross-section
+    const s = view.section, m = this._m, P0 = s.pts.map(p => m.latLngToContainerPoint([p.lat, p.lon])), [a, b] = P0;
+    if (Math.hypot(b.x - a.x, b.y - a.y) > 4) {
+      const ang = Math.atan2(b.y - a.y, b.x - a.x);
+      for (const [lw, col, dash] of [[6, '#000a', []], [3, '#ffd23f', [9, 6]]]) { g.lineWidth = lw; g.strokeStyle = col; g.setLineDash(dash); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
+      g.setLineDash([]); g.fillStyle = '#ffd23f'; g.strokeStyle = '#000'; g.lineWidth = 1.5; g.save(); g.translate(b.x, b.y); g.rotate(ang); g.beginPath(); g.moveTo(0, 0); g.lineTo(-14, -7); g.lineTo(-14, 7); g.closePath(); g.fill(); g.stroke(); g.restore();
+    }
+    g.font = 'bold 11px system-ui'; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = '#000'; g.fillStyle = '#fff'; g.strokeText('upwind', a.x, a.y - 8); g.fillText('upwind', a.x, a.y - 8);
+    if (s.ridge) { const r = m.latLngToContainerPoint([s.ridge.lat, s.ridge.lon]); g.fillStyle = '#ff7b54'; g.strokeStyle = '#000'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(r.x, r.y - 9); g.lineTo(r.x - 7, r.y + 5); g.lineTo(r.x + 7, r.y + 5); g.closePath(); g.fill(); g.stroke(); }
+  },
+  coast(g) { // line from the place to the nearest water
+    const c = view.coast, m = this._m, a = m.latLngToContainerPoint([c.place.lat, c.place.lon]), b = m.latLngToContainerPoint([c.coast.lat, c.coast.lon]);
+    g.lineWidth = 5; g.strokeStyle = '#000a'; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+    g.lineWidth = 2.5; g.strokeStyle = '#4aa3ff'; g.setLineDash([6, 5]); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); g.setLineDash([]);
+    g.font = '18px system-ui'; g.textAlign = 'center'; g.fillText('🌊', b.x, b.y + 6);
   },
   drawFronts(g, gj) {
     const SP = 26;

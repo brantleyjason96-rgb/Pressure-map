@@ -27,7 +27,8 @@
       <nav id="tabs">
         <button data-tab="explore" class="on">1 · Explore</button>
         <button data-tab="place">2 · My Place</button>
-        <button data-tab="notes">3 · My Notes</button>
+        <button data-tab="local">3 · Local</button>
+        <button data-tab="notes">4 · Notes</button>
         <button data-tab="teacher" hidden>Teacher</button>
       </nav>
     </header>
@@ -85,6 +86,16 @@
       <details id="pstartd" open><summary>Or choose from a list of good places to study</summary><div id="pstart" class="starters"></div></details>
       <label class="block">Place name <input id="pname" placeholder="(choose a place first)"></label>
       <div id="pcard"></div>
+    </section>
+
+    <section id="tab-local" class="tab" hidden>
+      <h3>Local effects at my place</h3>
+      <p class="muted small">The big map shows the large weather patterns. Mountains and coasts add local effects the model can’t see. Use these tools to decide how they change <i>your</i> forecast.</p>
+      <p id="lplace" class="small"></p>
+      <details class="topic" open><summary>⛰️ Mountains: windward and leeward</summary>
+        <p id="mnone" class="muted small">Choose a place on the My Place tab first.</p><div id="mbody" hidden></div></details>
+      <details class="topic" open><summary>🌊 Coast: land and sea breeze</summary>
+        <p id="cnone" class="muted small">Choose a place on the My Place tab first.</p><div id="cbody" hidden></div></details>
     </section>
 
     <section id="tab-notes" class="tab" hidden>

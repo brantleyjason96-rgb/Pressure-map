@@ -1,7 +1,11 @@
 """Write SYNTHETIC data in the same format as gfs_to_json.py, so the app can be developed and previewed offline.
 Not real weather. Usage: python3 dev/make_sample_data.py   (teacher password for data/teacher.enc is "sample")"""
 import base64, gzip, json, os
+import datetime
 import numpy as np
+
+T0 = datetime.datetime.now(datetime.timezone.utc).replace(minute=0, second=0, microsecond=0)
+T0 = T0.replace(hour=T0.hour // 6 * 6) - datetime.timedelta(hours=6)
 
 LAT0, LON0, D = -90, -180, 2
 lat = np.arange(-90, 91, D)[:, None] * np.ones((1, 181))
@@ -25,8 +29,7 @@ def frame(h, localhr_offset=0):
         p = p + amp * np.exp(-dist2(la + vn * h, lo + ve * h, la + vn * h, lo + ve * h) * 0 -
                              dist2(0, 0, 0, 0) * 0 - ((lat - (la + vn * h)) ** 2 + (((lon - (lo + ve * h) + 180) % 360 - 180) * np.cos(lat * K)) ** 2) / (2 * rad ** 2))
     # temperature: warm tropics, cold poles, diurnal swing following the sun, cold air west of each low
-    solar = (h + 12) % 24
-    t = 28 - 0.45 * np.abs(lat) - 0.0012 * lat ** 2 / 2 * 0 + 4 * np.cos(((solar + lon / 15) % 24 - 15) * 2 * np.pi / 24)
+    t = 28 - 0.45 * np.abs(lat) - 0.0012 * lat ** 2 / 2 * 0 + 5 * np.cos((((T0.hour + h) + lon / 15) % 24 - 15) * 2 * np.pi / 24)
     for la, lo, ve, vn, amp, rad in SYSTEMS:
         if amp < 0:
             dl = (lon - (lo + ve * h) + 180) % 360 - 180
@@ -53,9 +56,7 @@ def pack(hours):
     return {k: [f[k] for f in fr] for k in fr[0]}
 
 
-import datetime
-t0 = datetime.datetime.now(datetime.timezone.utc).replace(minute=0, second=0, microsecond=0)
-t0 = t0.replace(hour=t0.hour // 6 * 6) - datetime.timedelta(hours=6)
+t0 = T0
 grid = {"lat0": LAT0, "lon0": LON0, "d": D}
 os.makedirs("data", exist_ok=True)
 json.dump({"cycle": t0.isoformat(), "hours": PAST, **grid, "sample": True, "f": pack(PAST)}, open("data/pressure.json", "w"), separators=(",", ":"))
