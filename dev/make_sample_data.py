@@ -51,6 +51,24 @@ def frame(h, localhr_offset=0):
     return {"p": r(p, 1), "t": r(t, 1), "d": r(d, 1), "u": r(u, 1), "v": r(v, 1), "h5": r(h5, 0), "w5": r(w5, 0), "pr": r(pr, 1)}
 
 
+def make_sst():
+    """Crude continents + sea temperatures that fall off with latitude, with warm/cold bands along data/currents.json."""
+    boxes = [(32, 49, -124, -67), (49, 70, -141, -55), (15, 32, -105, -82), (60, 72, -168, -141), (-55, 12, -80, -35), (35, 71, -10, 40), (10, 75, 40, 142), (31, 45, 130, 145), (-35, 37, -17, 51),
+             (-39, -11, 113, 154), (-90, -65, -180, 180), (60, 84, -75, -12)]
+    land = np.zeros(lat.shape, bool)
+    for la0, la1, lo0, lo1 in boxes: land |= (lat >= la0) & (lat <= la1) & (lon >= lo0) & (lon <= lo1)
+    sst = np.maximum(-1.8, 29 * np.cos(lat * K) ** 1.3 - 1)
+    for c in json.load(open("data/currents.json"))["currents"]:
+        amp, f = (3.5 if c["kind"] == "warm" else -3.5), np.zeros(lat.shape)
+        for path in c["paths"]:
+            for (a0, o0), (a1, o1) in zip(path[:-1], path[1:]):
+                for t in np.linspace(0, 1, 6):
+                    la, lo = a0 + (a1 - a0) * t, o0 + (o1 - o0) * t
+                    f = np.maximum(f, np.exp(-((lat - la) ** 2 + (((lon - lo + 180) % 360 - 180) * np.cos(la * K)) ** 2) / (2 * 3.0 ** 2)))
+        sst = sst + amp * f
+    return [[None if land[i, j] else round(float(sst[i, j]), 1) for j in range(181)] for i in range(91)]
+
+
 def pack(hours):
     fr = [frame(h) for h in hours]
     return {k: [f[k] for f in fr] for k in fr[0]}
@@ -59,7 +77,7 @@ def pack(hours):
 t0 = T0
 grid = {"lat0": LAT0, "lon0": LON0, "d": D}
 os.makedirs("data", exist_ok=True)
-json.dump({"cycle": t0.isoformat(), "hours": PAST, **grid, "sample": True, "f": pack(PAST)}, open("data/pressure.json", "w"), separators=(",", ":"))
+json.dump({"cycle": t0.isoformat(), "hours": PAST, **grid, "sample": True, "sst": make_sst(), "f": pack(PAST)}, open("data/pressure.json", "w"), separators=(",", ":"))
 print("wrote data/pressure.json (SAMPLE)")
 try:
     from cryptography.hazmat.primitives import hashes

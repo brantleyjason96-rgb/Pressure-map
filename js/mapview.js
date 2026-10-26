@@ -1,8 +1,8 @@
 // The map: Leaflet base + one canvas that draws shading, isobars, H/L, wind, tracks and fronts for the current frame.
-import { $, on, range, ramp, fmtT, fmtS, fmtP, fmtRain, fmtD, windFrom, compass, esc, distKm } from './util.js';
-import { S, fld, sample, windAt, contour, frameInfo, frameTime, isForecast, motionOf } from './data.js';
+import { $, on, range, ramp, fmtT, fmtS, fmtP, fmtRain, fmtD, windFrom, compass, esc, distKm, U } from './util.js';
+import { S, fld, sample, windAt, contour, frameInfo, frameTime, isForecast, motionOf, gradientGrid } from './data.js';
 
-export const view = { hint: null, place: null, light: false, section: null, coast: null };
+export const view = { hint: null, place: null, light: false, section: null, coast: null, layers: {} };   // layers: name -> fn(g, map, canvasLayer) for modules that draw on the map
 export const hooks = { click: [] };            // other modules (quiz, place picker) get first look at map clicks
 export let map, layer;
 
@@ -11,12 +11,19 @@ const TCOL = [[-40, [150, 80, 200]], [-20, [80, 100, 230]], [0, [120, 200, 240]]
 const DCOL = [[-30, [170, 130, 90]], [-10, [210, 190, 120]], [0, [170, 220, 150]], [10, [90, 200, 140]], [18, [40, 170, 170]], [24, [40, 110, 200]]];
 const RCOL = [[0.3, [140, 215, 150]], [1, [60, 175, 90]], [3, [30, 130, 60]], [6, [240, 220, 60]], [12, [245, 150, 40]], [25, [220, 50, 40]], [50, [200, 40, 200]]];
 const JCOL = [[30, [150, 200, 255]], [50, [90, 230, 200]], [70, [120, 235, 100]], [90, [250, 230, 70]], [110, [250, 140, 50]], [130, [230, 50, 50]], [150, [220, 60, 220]]];
+const SCOL = [[-2, [50, 30, 130]], [5, [40, 100, 200]], [12, [60, 180, 200]], [20, [120, 210, 120]], [26, [250, 220, 70]], [30, [240, 120, 40]], [33, [200, 40, 40]]];
+const ACOL = [[-6, [30, 60, 200]], [-3, [110, 170, 255]], [0, [235, 235, 235]], [3, [255, 170, 110]], [6, [210, 40, 40]]];
+const GCOL = [[0.4, [255, 245, 160]], [1.2, [255, 200, 70]], [2.5, [245, 120, 40]], [4.5, [205, 40, 60]]];
+const dC = c => U.sys === 'us' ? Math.round(c * 1.8) : Math.round(c);   // a temperature difference, so no +32
 const flipped = stops => stops.map(([v], i) => [v, stops[stops.length - 1 - i][1]]);
 export const MODES = {
   p: { f: 'p', stops: PCOL, col: p => [...ramp(on('flip') ? flipped(PCOL) : PCOL, Math.max(980, p)), 150], l: () => ['980', '1013', '1045 hPa'] },
   t: { f: 't', stops: TCOL, col: v => [...ramp(TCOL, v), 140], l: () => [fmtT(-40), fmtT(10), fmtT(50)] },
   d: { f: 'd', stops: DCOL, col: v => [...ramp(DCOL, Math.max(-30, v)), 150], l: () => ['dry ' + fmtT(-30), fmtT(0), 'humid ' + fmtT(24)] },
   pr: { f: 'pr', stops: RCOL, col: v => { const c = ramp(RCOL, v); return c && [...c, Math.min(190, (v - 0.3) * 600)]; }, l: () => ['0.3 mm', '6', '50+ mm in the 6 h before'] },
+  sst: { grid: () => S.D.sst, stops: SCOL, col: v => [...ramp(SCOL, Math.max(-2, v)), 175], l: () => [fmtT(-2), fmtT(20), fmtT(33)] },
+  sstA: { grid: () => S.D.sstA, stops: ACOL, col: v => [...ramp(ACOL, Math.max(-6, Math.min(6, v))), Math.min(190, 70 + Math.abs(v) * 30)], l: () => [`${dC(6)}° colder`, 'normal for the latitude', `${dC(6)}° warmer`] },
+  tg: { grid: () => gradientGrid(S.cur), stops: GCOL, col: v => { const c = ramp(GCOL, v); return c && [...c, Math.min(200, 40 + (v - .4) * 150)]; }, l: () => [`${dC(0.4)}°`, `${dC(2.5)}°`, `${dC(4.5)}°+ per 100 km`] },
   w5: { f: 'w5', stops: JCOL, col: v => { const c = ramp(JCOL, v); return c && [...c, 170]; }, l: () => ['30 kt', '90', '150+ kt'] },
 };
 const PLEV = range(948, 1068, 4), HLEV = range(4800, 6000, 60);
@@ -50,8 +57,9 @@ const Cv = L.Layer.extend({
     const g = c.getContext('2d'), mode = MODES[$('shade').value];
     if (!S.D) return;
     const info = frameInfo(S.cur);
-    if (mode && S.D.f[mode.f][S.cur]) {
-      const f = S.D.f[mode.f][S.cur], q = 6, w = Math.ceil(s.x / q), h = Math.ceil(s.y / q), t = document.createElement('canvas'); t.width = w; t.height = h;
+    const grid = mode && (mode.grid ? mode.grid() : S.D.f[mode.f][S.cur]);
+    if (grid) {
+      const f = grid, q = 6, w = Math.ceil(s.x / q), h = Math.ceil(s.y / q), t = document.createElement('canvas'); t.width = w; t.height = h;
       const tg = t.getContext('2d'), im = tg.createImageData(w, h);
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
         const ll = m.containerPointToLatLng([x * q, y * q]), v = sample(f, ll.lat, ll.lng); if (isNaN(v)) continue;
@@ -66,6 +74,7 @@ const Cv = L.Layer.extend({
     if (on('wind')) this.wind(g);
     if (on('hl')) this.hl(g, info.ex);
     if (on('fr') && fronts && S.cur === S.nPast - 1) this.drawFronts(g, fronts.gj);
+    for (const fn of Object.values(view.layers)) fn(g, m, this);
     if (view.section) this.section(g);
     if (view.coast) this.coast(g);
     if (view.hint && view.hint.ll) { const p = m.latLngToContainerPoint(view.hint.ll); g.strokeStyle = '#ffd23f'; g.lineWidth = 4; g.beginPath(); g.arc(p.x, p.y, 28, 0, 7); g.stroke(); }
@@ -184,10 +193,15 @@ export function setFrame(i) {
   $('when').className = isForecast(i) ? 'fc' : '';
   $('when').innerHTML = `<b>${rel}</b><small>${t.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}</small>`;
   $('slider').value = i; legend(); layer.draw();
-  $('note2').textContent = $('shade').value === 'pr' && !S.D.f.pr[i] ? 'No rain total for this frame.' : '';
+  shadeNote();
   document.dispatchEvent(new CustomEvent('frame', { detail: i }));
 }
+function shadeNote() {
+  const sh = $('shade').value;
+  $('note2').textContent = sh === 'pr' && S.D && !S.D.f.pr[S.cur] ? 'No rain total for this frame.' : sh === 'sst' || sh === 'sstA' ? 'Sea temperature is from the newest analysis and is the same on every frame.' : sh === 'tg' ? 'Orange and red bands are where temperature changes quickly with distance. Fronts sit along them.' : '';
+}
 export function legend() {
+  shadeNote();
   $('fliprow').hidden = $('shade').value !== 'p';
   const m = MODES[$('shade').value]; $('legend').style.visibility = m ? 'visible' : 'hidden';
   if (!m) { ['l0', 'l1', 'l2'].forEach(i => $(i).textContent = ''); return; }
@@ -212,6 +226,7 @@ function probe(e) {
   L.popup().setLatLng(e.latlng).setContent(
     `<b>${esc(fmtP(p))}</b> — ${inHgNote(p)} average (1013): ${p >= 1013 ? 'high' : 'low'}-pressure side<br>` +
     `Temperature ${fmtT(f('t'))} · dewpoint ${fmtT(f('d'))}<br>` + (w ? `Wind from the ${compass(windFrom(w.u, w.v))} at ${fmtS(Math.hypot(w.u, w.v))}<br>` : '') +
+    (S.D.sst && !isNaN(sample(S.D.sst, lat, lng)) ? `Sea surface: ${fmtT(sample(S.D.sst, lat, lng))} (${dC(sample(S.D.sstA, lat, lng)) >= 0 ? '+' : ''}${dC(sample(S.D.sstA, lat, lng))}° vs. normal for the latitude)<br>` : '') +
     (pr == null ? '' : `Rain in the 6 h before: ${fmtRain(pr)}<br>`) + `500 mb: ${Math.round(f('h5'))} m high, wind ${Math.round(f('w5'))} kt<br>` +
     `<button class="usebtn" data-lat="${lat.toFixed(3)}" data-lon="${lng.toFixed(3)}">Use this as my place</button> ` +
     `<button class="pinbtn" data-topic="general" data-text="${esc(`At ${lat.toFixed(1)}, ${lng.toFixed(1)} (${shortTime()}): pressure ${fmtP(p)}, temperature ${fmtT(f('t'))}, dewpoint ${fmtT(f('d'))}` + (w ? `, wind from the ${compass(windFrom(w.u, w.v))} at ${fmtS(Math.hypot(w.u, w.v))}` : '') + '.')}">📌 Add to notes</button>`).openOn(map);
@@ -275,5 +290,5 @@ export async function loadFronts() {
       if (key <= today) found.push({ key, gj, date: `${m[1]} ${m[2]}` });
     }).catch(() => {})));
   found.sort((a, b) => a.key < b.key ? 1 : -1); fronts = found[0] || null;
-  $('frnote').textContent = frontsNote(); layer && layer.draw();
+  $('frnote').textContent = frontsNote(); layer && layer.draw(); document.dispatchEvent(new Event('cardrender'));   // the place card lists nearby fronts
 }

@@ -76,3 +76,14 @@ export function coastInfo(lat, lon, land, lakes) {
   const probe = F.ll(qx + seaward[0] * 3, qy + seaward[1] * 3);
   return { km: q.km, coast: { lat: q.lat, lon: q.lon }, seaward: bearingXY(seaward[0], seaward[1]), type: lakes.inside(probe.lat, probe.lon) ? 'lake' : 'sea' };
 }
+
+// Closest point on a polyline given as [[lat, lon], ...]. Returns km, the point, and the compass direction the line runs there.
+export function nearestOnPolyline(lat, lon, pts) {
+  const F = flatFrame(lat, lon); let best = null;
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, ay] = F.xy(pts[i - 1][0], pts[i - 1][1]), [bx, by] = F.xy(pts[i][0], pts[i][1]), dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+    const t = L2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L2)) : 0, qx = ax + t * dx, qy = ay + t * dy, d = Math.hypot(qx, qy);
+    if (!best || d < best.km) best = { km: d, qx, qy, flow: bearingXY(dx, dy) };
+  }
+  return best && { km: best.km, ...F.ll(best.qx, best.qy), flow: best.flow, toward: bearingXY(best.qx, best.qy) };   // toward: direction from the place to that point
+}

@@ -102,6 +102,7 @@ async function refresh() {
   $('cmsg').hidden = true; $('clab').hidden = false; render();
 }
 export const refreshCoast = refresh;
+export async function coastFor(pl) { await masks(); return coastInfo(pl.lat, pl.lon, land, lakes); }   // used by the ocean-current tool
 
 export function initCoast() {
   $('cbody').innerHTML = `<p id="cmsg" class="muted"></p><div id="cfacts"></div>

@@ -8,6 +8,8 @@ import { initQuiz } from './quiz.js';
 import { initTerrain, refreshMountains } from './terrain.js';
 import { initCoast, refreshCoast } from './coast.js';
 import { P } from './place.js';
+import { initCurrents, refreshCurrents, loadCurrents } from './currents.js';
+import { initTools } from './tools.js';
 
 // tabs
 document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
@@ -27,10 +29,12 @@ initTeacher();
     $('slider').max = S.hours.length - 1;
     $('st').textContent = 'Model analysis through ' + new Date(Date.parse(D.cycle)).toUTCString().slice(5, 22) + ' UTC';
     if (D.sample) $('samplebanner').hidden = false;
-    initQuiz(); initPlace(); initNotes(); initTerrain(); initCoast();
+    initQuiz(); initPlace(); initNotes(); initTerrain(); initCoast(); initCurrents(); initTools();
+    await loadCurrents();
+    if (!D.sst) document.querySelectorAll('#shade option[value=sst], #shade option[value=sstA]').forEach(o => o.remove());   // this data file has no sea temperature
     // the local-effects tools fetch data, so they only run while that tab is open and the place has changed
     let dirty = true; const local = () => !$('tab-local').hidden;
-    const run = () => { dirty = false; $('lplace').textContent = P.place ? 'Place: ' + P.place.name : ''; refreshMountains(); refreshCoast(); };
+    const run = () => { dirty = false; $('lplace').textContent = P.place ? 'Place: ' + P.place.name : ''; refreshMountains(); refreshCoast(); refreshCurrents(); };
     document.addEventListener('placechange', () => { dirty = true; if (local()) run(); });
     document.addEventListener('tabshow', e => { if (e.detail === 'local' && dirty) run(); });
     setFrame(S.cur);
