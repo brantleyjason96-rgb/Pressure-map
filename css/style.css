@@ -1,4 +1,4 @@
-:root{--bg:#10151c;--panel:#161d27;--line:#2a3544;--text:#e8eef5;--muted:#93a1b3;--accent:#2b6cff;--ok:#7dffa0;--bad:#ff8a8a;--warn:#ffc46b}
+:root{--bg:#10151c;--panel:#161d27;--line:#2a3544;--text:#e8eef5;--muted:#93a1b3;--accent:#2459d6;--ok:#7dffa0;--bad:#ff8a8a;--warn:#ffc46b}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;background:#111;color:var(--text);font:14px/1.4 system-ui,sans-serif}
 #app{position:absolute;inset:0;display:flex}
@@ -11,7 +11,7 @@ header{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 12px 0;
 .topbtns{display:flex;gap:6px}
 .muted{color:var(--muted)}.small{font-size:12px}
 #tabs{display:flex;gap:2px;margin-top:8px}
-#tabs button{flex:1;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:8px 2px;font:600 13px system-ui;cursor:pointer}
+#tabs button{flex:1;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:8px 2px;font:600 13px system-ui;cursor:pointer;border-radius:0}
 #tabs button.on{color:#fff;border-color:var(--accent)}
 .tab{padding:8px 14px 40px}
 h3{margin:14px 0 6px;font-size:16px}
@@ -22,6 +22,7 @@ button,select,input,textarea{font:inherit;color:var(--text)}
 button{background:#2a3544;border:0;border-radius:6px;padding:6px 10px;cursor:pointer}
 button:hover{background:#344256}
 button.primary,.bar button{background:var(--accent);color:#fff}
+button.primary:hover,.bar button:hover{background:#1d4cb8}
 button.ghost{background:none;border:1px solid var(--line)}
 button.wide{width:100%;margin:6px 0}
 button.active{background:#b8860b}
@@ -121,3 +122,63 @@ ul.eff{margin:6px 0;padding-left:18px}ul.eff li{margin:3px 0}
 .calc{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:8px 0;font-size:13px}
 .calc input{width:64px;display:inline-block;padding:2px 6px}
 #rulerout{flex:1}
+
+/* ===== UI pass: focus, layout, collapsing, dock, overlays, dialogs ===== */
+:focus-visible{outline:3px solid #ffd23f;outline-offset:2px}
+.lead{font-size:14px;line-height:1.45;color:#cfd8e4}
+.top{padding-bottom:6px}
+.toolbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0}
+.toolbar select{width:auto}
+#mywork{position:relative}
+#workdot{position:absolute;top:-3px;right:-3px;width:10px;height:10px;border-radius:50%;background:#ffb454;border:2px solid var(--bg)}
+#st{margin:4px 0 2px}
+#tabs button .num{display:inline-block;width:18px;height:18px;line-height:18px;border-radius:50%;background:#2a3544;color:#fff;font-size:11px;margin-right:4px}
+#tabs button.on .num{background:var(--accent)}
+.bdg{font-style:normal;margin-left:4px;color:var(--ok);font-size:12px}
+details.grp{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:10px 0}
+details.grp>summary{font-size:14px}
+details.grp[open]>summary{margin-bottom:6px}
+.pager{display:flex;justify-content:space-between;gap:8px;margin-top:20px;padding-top:12px;border-top:1px solid var(--line)}
+.empty{background:var(--panel);border:1px dashed var(--line);border-radius:8px;padding:14px;text-align:center;color:var(--muted)}
+.empty button{margin-top:8px}
+.foot{padding:10px 14px 16px;border-top:1px solid var(--line)}
+.backup{background:#3a2a00;border:1px solid #b8860b;border-radius:8px;padding:8px 10px;margin:8px 0;font-size:13px}
+/* collapsing the side panel */
+#side{transition:none}
+#app.collapsed #side{display:none}
+#dock{position:absolute;right:10px;top:50%;transform:translateY(-50%);z-index:600;display:flex;flex-direction:column;gap:4px;background:#000d;padding:6px;border-radius:12px}
+#dock[hidden]{display:none}
+#dock button{display:flex;flex-direction:column;align-items:center;gap:1px;font-size:20px;background:none;padding:6px 8px;min-width:60px}
+#dock button span{font-size:11px;font-weight:600}
+#dock button:hover{background:#344256}
+/* things drawn over the map */
+#maplegend{position:absolute;left:10px;bottom:84px;z-index:500;width:min(240px,50%);background:#000d;color:#fff;padding:7px 10px 6px;border-radius:8px}
+#maplegend[hidden]{display:none}
+#ltitle{font:600 12px system-ui;margin-bottom:4px}
+#maplegend .row{color:#cfd8e4}
+#legend{margin:2px 0}
+#notechip{position:absolute;top:10px;right:10px;z-index:600;background:#000d;color:#fff;border:1px solid #fff3;padding:6px 12px;border-radius:18px;font-weight:600}
+#notechip b{background:var(--accent);border-radius:10px;padding:0 7px;margin-left:4px}
+#toast{position:absolute;left:50%;bottom:90px;transform:translate(-50%,10px);z-index:700;background:#1c7c3c;color:#fff;padding:8px 16px;border-radius:20px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;max-width:90%}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#loading{position:absolute;inset:0;z-index:900;background:#10151c;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;font-size:18px;text-align:center;padding:20px}
+#loading[hidden]{display:none}
+.bar #nowbtn{padding:5px 12px}
+/* dialogs */
+.modal{position:fixed;inset:0;z-index:2000;background:#000a;display:flex;align-items:center;justify-content:center;padding:12px}
+.modal[hidden]{display:none}
+.modal .card,#tmodal form{background:var(--panel);padding:18px 22px;border-radius:12px;width:min(94vw,540px);max-height:92vh;overflow:auto;border:1px solid var(--line)}
+.modal h3{margin-top:0}
+ol.steps4{padding-left:22px;line-height:1.5}ol.steps4 li{margin:8px 0}
+.workbtns{display:flex;flex-direction:column;gap:8px;margin:12px 0}
+.workbtns .filebtn{text-align:center;padding:8px 10px}
+@media(max-width:800px){
+  #app.collapsed #mapwrap{height:100%}
+  #dock{right:auto;left:50%;top:auto;bottom:128px;transform:translateX(-50%);flex-direction:row}
+  #maplegend{top:84px;bottom:auto;width:200px}#toast{bottom:150px}
+  #notechip{top:8px}#samplebanner{top:46px;font-size:11px;white-space:nowrap}
+  .bar{bottom:30px;padding:6px 10px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+
+.tnote{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin:6px 0;font-size:13px}

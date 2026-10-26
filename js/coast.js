@@ -94,7 +94,7 @@ function render() {
   view.coast = { place: pl, coast: info.coast, seaward: info.seaward }; redraw();
 }
 async function refresh() {
-  const ok = !!(P.place && S.D); $('cbody').hidden = !ok; $('cnone').hidden = ok; if (!ok) { view.coast = null; redraw(); return; }
+  const ok = !!(P.place && S.D); $('cbody').hidden = !ok; if (!ok) { view.coast = null; redraw(); return; }
   $('cmsg').textContent = 'Finding the nearest coast…'; $('cmsg').hidden = false; $('clab').hidden = true; $('cfacts').innerHTML = '';
   try { await masks(); await compute(); } catch { $('cmsg').textContent = 'Coastline lookup needs an internet connection. Try again in a moment.'; return; }
   if (C.info.onWater) { $('cmsg').textContent = 'This place is over water. Pick a place on land to study land and sea breezes.'; return; }

@@ -17,8 +17,10 @@ export const TOPICS = [
   { k: 'current', icon: '🌀', name: 'Ocean Currents', ask: 'What is the nearest ocean current? Is it warm or cold? How does it change my air?',
     frames: ['The nearest ocean current is the ___ current, and it is ___ (warm / cold).', 'Air over it becomes ___ and ___, so my place will be ___.', 'This is why my temperatures are ___ than other places at the same latitude.'] },
 ];
-let N = Object.assign({ student: '', items: [], seq: 0 }, store.get('notes', {}));
-const save = () => { store.set('notes', N); cover(); };
+let N = Object.assign({ student: '', items: [], seq: 0, group: 'topic' }, store.get('notes', {}));
+const save = () => { store.set('notes', N); cover(); document.dispatchEvent(new Event('noteschanged')); };
+export const noteCount = () => N.items.length;
+export const getNotes = () => N;
 const stamp = () => frameTime(S.nPast - 1).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'UTC' }) + ' UTC';
 const topic = k => TOPICS.find(t => t.k === k) || TOPICS[0];
 
@@ -26,22 +28,25 @@ function cover() { // how many notes per topic: a nudge, not a gate
   $('ncover').innerHTML = TOPICS.slice(1).map(t => { const n = N.items.filter(i => i.k === t.k).length; return `<span class="chip ${n ? 'has' : ''}">${t.icon} ${esc(t.name)} <b>${n}</b></span>`; }).join('');
   $('nplace').textContent = P.place ? `Place: ${P.place.name}` : 'No place chosen yet — pick one on the My Place tab.';
 }
-function renderList() {
-  $('nlist').innerHTML = TOPICS.map(t => {
-    const items = N.items.filter(i => i.k === t.k);
-    if (!items.length) return '';
-    return `<details class="topic" open><summary>${t.icon} ${esc(t.name)} <small class="muted">(${items.length})</small></summary>` + items.map(i => `
+const dayKey = t => t ? new Date(t).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }) : 'Earlier';
+const addedAt = t => t ? new Date(t).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+const noteHTML = i => `
       <div class="note" data-id="${i.id}">
-        ${i.pin ? '<span class="pinned">📌 pinned · ' + esc(i.when) + '</span>' : ''}
-        <textarea rows="${Math.min(8, Math.max(2, Math.ceil(i.text.length / 40)))}" data-id="${i.id}">${esc(i.text)}</textarea>
+        <span class="pinned">${i.pin ? '📌 map data from ' + esc(i.when) + ' · ' : ''}${i.created ? 'added ' + esc(addedAt(i.created)) : ''}${N.group === 'day' ? ' · ' + esc(topic(i.k).name) : ''}</span>
+        <textarea rows="${Math.min(8, Math.max(2, Math.ceil(i.text.length / 40)))}" data-id="${i.id}" aria-label="Note: ${esc(topic(i.k).name)}">${esc(i.text)}</textarea>
         <button class="ghost del" data-del="${i.id}" title="Delete this note">Delete</button>
-      </div>`).join('') + '</details>';
-  }).join('') || '<p class="muted small">No notes yet. Write one above, or use the 📌 buttons on the map and the My Place tab to save evidence.</p>';
+      </div>`;
+function renderList() {
+  let groups;
+  if (N.group === 'day') { const m = new Map(); [...N.items].sort((a, b) => (b.created || 0) - (a.created || 0)).forEach(i => { const k = dayKey(i.created); (m.get(k) || m.set(k, []).get(k)).push(i); }); groups = [...m].map(([name, items]) => ({ name: '📅 ' + name, items })); }
+  else groups = TOPICS.map(t => ({ name: `${t.icon} ${t.name}`, items: N.items.filter(i => i.k === t.k) }));
+  $('nlist').innerHTML = groups.filter(g => g.items.length).map(g => `<details class="topic" open><summary>${esc(g.name)} <small class="muted">(${g.items.length})</small></summary>${g.items.map(noteHTML).join('')}</details>`).join('')
+    || '<p class="empty small">No notes yet. Write one above, or use the 📌 buttons on the map and the other tabs to save evidence.</p>';
   cover();
 }
 function add(k, text, pin) {
   text = text.trim(); if (!text) return;
-  N.items.push({ id: ++N.seq, k, text, pin: !!pin, when: stamp() }); save(); renderList();
+  N.items.push({ id: ++N.seq, k, text, pin: !!pin, when: stamp(), created: Date.now() }); save(); renderList();
 }
 const plain = () => {
   const pl = P.place, nm = P.normals, lines = [`WEATHER NOTES — ${N.student || '(name)'}`];
@@ -66,6 +71,7 @@ function download(name, text, type) {
 const fname = () => (N.student || 'my').replace(/\W+/g, '_');
 
 export function initNotes() {
+  $('ngroup').value = N.group; $('ngroup').onchange = e => { N.group = e.target.value; save(); renderList(); };
   $('nname').value = N.student; $('nname').oninput = e => { N.student = e.target.value; save(); };
   $('ntopic').innerHTML = TOPICS.map(t => `<option value="${t.k}">${t.icon} ${esc(t.name)}</option>`).join('');
   const showAsk = () => { const t = topic($('ntopic').value); $('nask').textContent = t.ask; $('nframes').innerHTML = t.frames.map((f, j) => `<button type="button" data-j="${j}">${esc(f)}</button>`).join(''); };
