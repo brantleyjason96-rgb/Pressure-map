@@ -2,7 +2,7 @@
 import { $, on, range, ramp, fmtT, fmtS, fmtP, fmtRain, fmtD, windFrom, compass, esc, distKm, U } from './util.js';
 import { S, fld, sample, windAt, contour, frameInfo, frameTime, isForecast, motionOf, gradientGrid } from './data.js';
 
-export const view = { hint: null, place: null, light: false, section: null, coast: null, localOn: false, layers: {} };   // layers: name -> fn(g, map, canvasLayer) for modules that draw on the map
+export const view = { hint: null, place: null, light: false, section: null, coast: null, localOn: false, predictOn: false, layers: {} };   // layers: name -> fn(g, map, canvasLayer) for modules that draw on the map
 export const hooks = { click: [] };            // other modules (quiz, place picker) get first look at map clicks
 export let map, layer;
 
@@ -245,7 +245,8 @@ function systemPopup(e, pt) {
   L.popup().setLatLng([s.lat, s.lon]).setContent(`<b>${name}: ${Math.round(s.v)} hPa</b><br>` + (mo
     ? `Moving toward the ${compass(mo.dir)} at ${fmtS(mo.kmh / 3.6)}<br>Change over ${mo.hrs} h: ${dp > 0 ? '+' : ''}${dp.toFixed(1)} hPa — ${trend}<br><small>Measured from its past positions (dotted trail).</small>`
     : '<small>This system is new in the last 48 h, so its motion can’t be measured yet.</small>') +
-    `<br><button class="pinbtn" data-topic="hl" data-text="${esc(`${name} ${Math.round(s.v)} hPa near ${s.lat.toFixed(1)}, ${s.lon.toFixed(1)} (${shortTime()}): ` + (mo ? `moving toward the ${compass(mo.dir)} at ${fmtS(mo.kmh / 3.6)}, pressure change ${dp > 0 ? '+' : ''}${dp.toFixed(1)} hPa in ${mo.hrs} h — ${trend}.` : 'new in the last 48 h, motion not measurable yet.'))}">📌 Add to notes</button>`).openOn(map);
+    `<br><button class="pinbtn" data-topic="hl" data-text="${esc(`${name} ${Math.round(s.v)} hPa near ${s.lat.toFixed(1)}, ${s.lon.toFixed(1)} (${shortTime()}): ` + (mo ? `moving toward the ${compass(mo.dir)} at ${fmtS(mo.kmh / 3.6)}, pressure change ${dp > 0 ? '+' : ''}${dp.toFixed(1)} hPa in ${mo.hrs} h — ${trend}.` : 'new in the last 48 h, motion not measurable yet.'))}">📌 Add to notes</button>` +
+    (view.predictOn && S.cur === S.nPast - 1 ? `<br><button class="projbtn" data-t="${s.t}" data-lat="${s.lat}" data-lon="${s.lon}" data-v="${s.v}">🔮 Add to my projection</button>` : '')).openOn(map);
   return true;
 }
 
@@ -261,6 +262,8 @@ export function initMap() {
     probe(e);
   });
   map.on('popupopen', e => {
+    const jb = e.popup.getElement().querySelector('.projbtn');
+    if (jb && jb.dataset.t) jb.onclick = () => { map.closePopup(); document.dispatchEvent(new CustomEvent('addproj', { detail: { t: jb.dataset.t, lat: +jb.dataset.lat, lon: +jb.dataset.lon, v: +jb.dataset.v } })); };
     const pb = e.popup.getElement().querySelector('.pinbtn');
     if (pb) pb.onclick = () => { document.dispatchEvent(new CustomEvent('pinnote', { detail: { topic: pb.dataset.topic, text: pb.dataset.text } })); pb.textContent = '✓ Added to notes'; pb.disabled = true; };
     const b = e.popup.getElement().querySelector('.usebtn'); if (b) b.onclick = () => { map.closePopup(); document.dispatchEvent(new CustomEvent('usepoint', { detail: { lat: +b.dataset.lat, lon: +b.dataset.lon } })); }; });

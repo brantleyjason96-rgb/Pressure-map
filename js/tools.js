@@ -49,17 +49,21 @@ function ruler(e) {
 }
 
 // ---- nearest fronts: NOAA's chart (North America) and the ones the student drew
-function nearestFronts(pl) {
-  const out = [], line = pts => nearestOnPolyline(pl.lat, pl.lon, pts);
+// every front on the newest map as {src, type, pts: [[lat, lon], ...]}: NOAA's, the computer-found ones, and the ones the student drew
+export function listFronts() {
+  const out = [];
   for (const f of frontLines() || []) {
-    const t = frType(f); if (t === 'Trough') continue;
-    const lines = f.geometry.type === 'MultiLineString' ? f.geometry.coordinates : [f.geometry.coordinates];
-    const best = lines.map(l => line(l.map(([x, y]) => [y, x]))).filter(Boolean).reduce((a, b) => !a || b.km < a.km ? b : a, null);
-    if (best) out.push({ src: 'NOAA', type: t, ...best });
+    const type = frType(f); if (type === 'Trough') continue;
+    for (const l of f.geometry.type === 'MultiLineString' ? f.geometry.coordinates : [f.geometry.coordinates]) out.push({ src: 'NOAA', type, pts: l.map(([x, y]) => [y, x]) });
   }
-  for (const f of (S.D.fr && S.D.fr[S.nPast - 1]) || []) { const b = line(f.p); if (b) out.push({ src: 'model', type: f.t, ...b }); }   // found by computer, worldwide
-  for (const f of drawn.filter(f => f.t === key(S.nPast - 1))) { const b = line(f.pts); if (b) out.push({ src: 'mine', type: f.type, ...b }); }
-  return out.sort((a, b) => a.km - b.km).slice(0, 4);
+  for (const f of (S.D.fr && S.D.fr[S.nPast - 1]) || []) out.push({ src: 'model', type: f.t, pts: f.p });
+  for (const f of drawn.filter(f => f.t === key(S.nPast - 1))) out.push({ src: 'mine', type: f.type, pts: f.pts });
+  return out;
+}
+export function nearestFronts(pl, n = 4) {
+  const out = [];
+  for (const f of listFronts()) { const b = nearestOnPolyline(pl.lat, pl.lon, f.pts); if (b) out.push({ ...f, ...b }); }
+  return out.sort((a, b) => a.km - b.km).slice(0, n);
 }
 const who = f => f.src === 'mine' ? 'My' : f.src === 'model' ? 'Computer-found' : 'NOAA';
 function fillFronts() {
