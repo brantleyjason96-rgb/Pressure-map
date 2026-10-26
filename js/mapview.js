@@ -186,6 +186,7 @@ export function setPin(p) {
 export const flyTo = (lat, lon, z) => map.flyTo([lat, lon], Math.max(map.getZoom(), z ?? 5), { duration: .8 });
 
 // ---- clicks: other modules first, then H/L info, then a probe of the values at that spot
+const shortTime = () => frameTime(S.cur).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'UTC' }) + ' UTC';
 const inHgNote = p => p >= 1013 ? 'above' : 'below';
 function probe(e) {
   const { lat, lng } = e.latlng, f = k => sample(fld(k), lat, lng), p = f('p'); if (isNaN(p)) return;
@@ -194,7 +195,8 @@ function probe(e) {
     `<b>${esc(fmtP(p))}</b> — ${inHgNote(p)} average (1013): ${p >= 1013 ? 'high' : 'low'}-pressure side<br>` +
     `Temperature ${fmtT(f('t'))} · dewpoint ${fmtT(f('d'))}<br>` + (w ? `Wind from the ${compass(windFrom(w.u, w.v))} at ${fmtS(Math.hypot(w.u, w.v))}<br>` : '') +
     (pr == null ? '' : `Rain in the 6 h before: ${fmtRain(pr)}<br>`) + `500 mb: ${Math.round(f('h5'))} m high, wind ${Math.round(f('w5'))} kt<br>` +
-    `<button class="usebtn" data-lat="${lat.toFixed(3)}" data-lon="${lng.toFixed(3)}">Use this as my place</button>`).openOn(map);
+    `<button class="usebtn" data-lat="${lat.toFixed(3)}" data-lon="${lng.toFixed(3)}">Use this as my place</button> ` +
+    `<button class="pinbtn" data-topic="general" data-text="${esc(`At ${lat.toFixed(1)}, ${lng.toFixed(1)} (${shortTime()}): pressure ${fmtP(p)}, temperature ${fmtT(f('t'))}, dewpoint ${fmtT(f('d'))}` + (w ? `, wind from the ${compass(windFrom(w.u, w.v))} at ${fmtS(Math.hypot(w.u, w.v))}` : '') + '.')}">📌 Add to notes</button>`).openOn(map);
 }
 function systemPopup(e, pt) {
   let best = null;
@@ -206,7 +208,8 @@ function systemPopup(e, pt) {
     : (dp > 2 ? 'getting stronger (pressure rising)' : dp < -2 ? 'weakening (pressure falling)' : 'about the same strength');
   L.popup().setLatLng([s.lat, s.lon]).setContent(`<b>${name}: ${Math.round(s.v)} hPa</b><br>` + (mo
     ? `Moving toward the ${compass(mo.dir)} at ${fmtS(mo.kmh / 3.6)}<br>Change over ${mo.hrs} h: ${dp > 0 ? '+' : ''}${dp.toFixed(1)} hPa — ${trend}<br><small>Measured from its past positions (dotted trail).</small>`
-    : '<small>This system is new in the last 48 h, so its motion can’t be measured yet.</small>')).openOn(map);
+    : '<small>This system is new in the last 48 h, so its motion can’t be measured yet.</small>') +
+    `<br><button class="pinbtn" data-topic="hl" data-text="${esc(`${name} ${Math.round(s.v)} hPa near ${s.lat.toFixed(1)}, ${s.lon.toFixed(1)} (${shortTime()}): ` + (mo ? `moving toward the ${compass(mo.dir)} at ${fmtS(mo.kmh / 3.6)}, pressure change ${dp > 0 ? '+' : ''}${dp.toFixed(1)} hPa in ${mo.hrs} h — ${trend}.` : 'new in the last 48 h, motion not measurable yet.'))}">📌 Add to notes</button>`).openOn(map);
   return true;
 }
 
@@ -221,7 +224,10 @@ export function initMap() {
     if (systemPopup(e, pt)) return;
     probe(e);
   });
-  map.on('popupopen', e => { const b = e.popup.getElement().querySelector('.usebtn'); if (b) b.onclick = () => { map.closePopup(); document.dispatchEvent(new CustomEvent('usepoint', { detail: { lat: +b.dataset.lat, lon: +b.dataset.lon } })); }; });
+  map.on('popupopen', e => {
+    const pb = e.popup.getElement().querySelector('.pinbtn');
+    if (pb) pb.onclick = () => { document.dispatchEvent(new CustomEvent('pinnote', { detail: { topic: pb.dataset.topic, text: pb.dataset.text } })); pb.textContent = '✓ Added to notes'; pb.disabled = true; };
+    const b = e.popup.getElement().querySelector('.usebtn'); if (b) b.onclick = () => { map.closePopup(); document.dispatchEvent(new CustomEvent('usepoint', { detail: { lat: +b.dataset.lat, lon: +b.dataset.lon } })); }; });
   document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => map.setView(...JSON.parse(b.dataset.view)));
   document.querySelectorAll('#tab-explore input[type=checkbox], #shade').forEach(c => c.onchange = () => { legend(); layer.draw(); });
   $('slider').oninput = e => setFrame(+e.target.value);

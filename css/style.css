@@ -44,13 +44,8 @@ ul.sys{padding-left:18px;margin:6px 0}ul.sys li{margin:6px 0}
 .ch{margin:8px 0}.ch small{color:var(--muted)}
 .spark{width:100%;height:auto;display:block;overflow:visible}
 .spark text{fill:var(--muted);font:10px system-ui}.spark .arr{fill:#e6d36a;font-size:13px}.spark .lab{fill:var(--text);paint-order:stroke;stroke:var(--bg);stroke-width:3px}
-.prog{margin:6px 0;font-weight:600}.prog .ok,.ok{color:var(--ok)}.no{color:var(--bad)}
-.tag{color:var(--ok);font-size:12px;font-weight:400}
 .warn{color:var(--warn);font-size:12px;min-height:0;margin:4px 0}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-top:8px}
-.grid2 label{font-size:12px;color:var(--muted);margin:0}
-.grid2 input,.grid2 select{margin-top:2px;color:var(--text)}
-details.day,details.concept{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:8px 0}
+details.topic{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:8px 0}
 .ask{font-size:13px;color:var(--muted)}
 .frames button{display:block;width:100%;text-align:left;background:#1d2733;margin:3px 0;font-size:12px;border:1px dashed var(--line)}
 .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
@@ -91,3 +86,15 @@ body.teacher #side{box-shadow:inset 4px 0 0 #b8860b}
   body.printing #printReport{display:block}
   body.printing,html{height:auto;background:#fff}
 }
+
+.ok{color:var(--ok)}.no{color:var(--bad)}
+.cover{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{background:#1d2733;border:1px solid var(--line);border-radius:14px;padding:2px 9px;font-size:12px;color:var(--muted)}
+.chip.has{color:var(--text);border-color:#3a6a52}.chip b{color:var(--ok)}
+.addnote{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:10px 0}
+.note{position:relative;margin:8px 0}
+.note .pinned{display:block;font-size:11px;color:var(--muted);margin-bottom:2px}
+.note .del{position:absolute;right:4px;bottom:4px;font-size:11px;padding:1px 6px;background:#10151c}
+.pinbtn{margin:6px 0 2px;background:#2a3544;font-size:12px}
+.leaflet-popup-content .pinbtn{background:#e9eef6;color:#111;border:1px solid #b9c4d4}
+.pinbtn:disabled{opacity:.6;cursor:default}

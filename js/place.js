@@ -1,7 +1,7 @@
 // "My Place": pick a spot, then show only what a forecaster needs: the present, the recent past, and the normals.
 // Nothing here looks forward in time.
 import { $, esc, store, fmtT, fmtS, fmtP, fmtD, fmtRain, fmtElev, compass, windFrom, tempOut, spdOut, tUnit, sUnit, distKm, bearing, range } from './util.js';
-import { S, sample, nearestSystem } from './data.js';
+import { S, sample, nearestSystem, frameTime } from './data.js';
 import { hooks, setPin, flyTo, map, redraw } from './mapview.js';
 
 export const P = { place: store.get('place', null), picking: false, normals: null };
@@ -17,6 +17,8 @@ const STARTERS = [
 ];
 
 const now = () => S.nPast - 1;
+const when = () => frameTime(now()).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'UTC' }) + ' UTC';
+const pinBtn = (topic, text) => `<button class="pinbtn" data-topic="${topic}" data-text="${esc(text)}">📌 Add to notes</button>`;
 export function pastSeries(pl = P.place) { // model analysis at the place for each past frame (never forecast)
   const o = { hours: S.hours.slice(0, S.nPast), t: [], d: [], p: [], spd: [], dir: [], pr: [] };
   for (let i = 0; i < S.nPast; i++) {
@@ -97,8 +99,9 @@ function relDir(bear, mdir) { // does a system's path point toward the place?
 function sysLine(type, pl) {
   const s = nearestSystem(pl.lat, pl.lon, type, now()); if (!s) return `<li>No ${type === 'H' ? 'High' : 'Low'} found nearby.</li>`;
   const m = s.motion, name = type === 'H' ? 'High' : 'Low';
-  return `<li><b>Nearest ${name}:</b> ${Math.round(s.e.v)} hPa, <b>${fmtD(s.d)}</b> to the ${compass(s.brg)} of you.<br>` +
-    (m ? `Moving toward the ${compass(m.dir)} at ${fmtS(m.kmh / 3.6)} (${m.dp > 0 ? '+' : ''}${m.dp.toFixed(1)} hPa in ${m.hrs} h) ${s.d < 4000 ? ' — ' + relDir(bearing(s.e.lat, s.e.lon, pl.lat, pl.lon), m.dir) : ' — too far away to matter soon'}.` : 'New in the last 48 h; motion not measurable yet.') + '</li>';
+  const head = `Nearest ${name}: ${Math.round(s.e.v)} hPa, ${fmtD(s.d)} to the ${compass(s.brg)} of ${pl.name}`;
+  const mot = m ? `Moving toward the ${compass(m.dir)} at ${fmtS(m.kmh / 3.6)} (${m.dp > 0 ? '+' : ''}${m.dp.toFixed(1)} hPa in ${m.hrs} h)${s.d < 4000 ? ' — ' + relDir(bearing(s.e.lat, s.e.lon, pl.lat, pl.lon), m.dir) : ' — too far away to matter soon'}.` : 'New in the last 48 h; motion not measurable yet.';
+  return `<li><b>Nearest ${name}:</b> ${Math.round(s.e.v)} hPa, <b>${fmtD(s.d)}</b> to the ${compass(s.brg)} of you.<br>${mot}<br>${pinBtn('hl', `${head} (${when()}). ${mot}`)}</li>`;
 }
 export function renderCard() {
   const el = $('pcard'), pl = P.place;
@@ -118,12 +121,43 @@ export function renderCard() {
     <div class="kv"><span>Temperature</span><b>${fmtT(t)}</b><span>Dewpoint</span><b>${fmtT(ser.d[n])}</b>
       <span>Pressure</span><b>${esc(fmtP(p))}</b><span>Pressure change</span><b>${dp24 > 0 ? '+' : ''}${dp24.toFixed(1)} hPa / 24 h → ${tend}</b>
       <span>Wind</span><b>from the ${compass(ser.dir[n])} at ${fmtS(ser.spd[n])}</b><span>Rain, last 6 h</span><b>${fmtRain(ser.pr[n])}</b></div>
+    ${pinBtn('general', `${pl.name}, ${when()}: temperature ${fmtT(t)}, dewpoint ${fmtT(ser.d[n])}, pressure ${fmtP(p)} (${tend}, ${dp24 > 0 ? '+' : ''}${dp24.toFixed(1)} hPa in 24 h), wind from the ${compass(ser.dir[n])} at ${fmtS(ser.spd[n])}, rain in the last 6 h ${fmtRain(ser.pr[n])}.`)}
     <h4>Highs and lows near you</h4><ul class="sys">${sysLine('H', pl)}${sysLine('L', pl)}</ul>
     <h4>The past 48 hours here</h4>${chartsHTML(ser, S.cur < S.nPast ? S.cur : n)}
+    <button id="pchartdl" class="wide">⬇ Download these charts as a picture (for slides)</button>
     <p class="muted small">Model values are averages over a square about 200 km (125 mi) wide. Hills, lakes and the coast are <i>not</i> in them — that is part of what you add with your own reasoning.</p>`;
 }
 
+// ---- charts as a standalone PNG the student can drop into slides (inline styles, white background, no outside files)
+function chartsPNG() {
+  const pl = P.place; if (!pl) return; const s = pastSeries(pl), W = 340, H = 150, M = 16;
+  const specs = [['Pressure (hPa)', s.p, '#2f6fd0', v => v.toFixed(0)], [`Temperature (${tUnit()})`, s.t, '#e0702a', v => Math.round(tempOut(v)) + '°'],
+    [`Dewpoint (${tUnit()})`, s.d, '#1aa37a', v => Math.round(tempOut(v)) + '°'], [`Wind speed (${sUnit()})`, s.spd, '#b08d00', v => Math.round(spdOut(v))]];
+  const panel = ([title, vals, col, fmt], k) => {
+    const ox = M + (k % 2) * (W + M), oy = 62 + Math.floor(k / 2) * (H + 34), n = vals.length;
+    let lo = Math.min(...vals), hi = Math.max(...vals); if (hi - lo < 1e-6) { hi += 1; lo -= 1; }
+    const X = i => ox + 30 + i * (W - 40) / (n - 1), Y = v => oy + H - 18 - (v - lo) / (hi - lo) * (H - 38);
+    return `<text x="${ox}" y="${oy + 4}" font-size="13" font-weight="700" fill="#111">${esc(title)}</text>` +
+      [0, 4, 8].map(i => `<line x1="${X(i)}" x2="${X(i)}" y1="${oy + 10}" y2="${oy + H - 18}" stroke="#ddd"/><text x="${X(i)}" y="${oy + H - 3}" font-size="10" text-anchor="middle" fill="#555">${i === n - 1 ? 'now' : '−' + -S.hours[i] + ' h'}</text>`).join('') +
+      `<text x="${ox}" y="${oy + 22}" font-size="10" fill="#111">${esc(fmt(hi))}</text><text x="${ox}" y="${oy + H - 20}" font-size="10" fill="#111">${esc(fmt(lo))}</text>` +
+      `<polyline fill="none" stroke="${col}" stroke-width="2.5" points="${vals.map((v, i) => X(i) + ',' + Y(v)).join(' ')}"/><circle cx="${X(n - 1)}" cy="${Y(vals[n - 1])}" r="4" fill="${col}"/>`;
+  };
+  const w = M * 3 + W * 2, h = 62 + (H + 34) * 2 + 8;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" font-family="Arial, sans-serif"><rect width="100%" height="100%" fill="#fff"/>` +
+    `<text x="${M}" y="22" font-size="16" font-weight="700" fill="#111">${esc(pl.name)} — past 48 hours</text><text x="${M}" y="38" font-size="10" fill="#555">NOAA GFS model analysis through ${esc(when())}${S.D.sample ? ' (SAMPLE DATA)' : ''}</text>${specs.map(panel).join('')}</svg>`;
+  const img = new Image(); img.onload = () => {
+    const c = document.createElement('canvas'); c.width = w * 2; c.height = h * 2; const g = c.getContext('2d'); g.scale(2, 2); g.drawImage(img, 0, 0);
+    c.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `charts-${pl.name.replace(/\W+/g, '_')}.png`; a.click(); URL.revokeObjectURL(a.href); });
+  };
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
 export function initPlace() {
+  $('pcard').addEventListener('click', e => {
+    const b = e.target.closest('.pinbtn');
+    if (b) { document.dispatchEvent(new CustomEvent('pinnote', { detail: { topic: b.dataset.topic, text: b.dataset.text } })); b.textContent = '✓ Added to notes'; b.disabled = true; return; }
+    if (e.target.id === 'pchartdl') chartsPNG();
+  });
   $('pgo').onclick = async () => {
     const q = $('pq').value.trim(); if (!q) return;
     $('pres').innerHTML = '<span class="muted">searching…</span>';

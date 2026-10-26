@@ -16,10 +16,13 @@ from the information on the map: highs and lows, fronts, land/sea breeze, windwa
 3. Re-run the `publish-map` workflow. Click **Teacher** on the site and enter the passphrase.
 
 Unlocked, the time slider continues past "Now" into orange FORECAST frames, the Teacher tab shows the model's highs/lows/wind/rain
-for a place, and you can open a student's saved file to compare it with the model. Reloading the page locks it again.
+for a place (pick a student's place on My Place), plus every 6 hours of the model forecast, to check their presentation. Reloading the page locks it again.
 
-## Student hand-in
-In **My Forecast**, students can print or save a PDF report, or save a `.json` file that the Teacher tab can open.
+## Student notes
+Students present their forecast themselves, so there is no forecast form. The **My Notes** tab collects evidence by topic
+(highs and lows, fronts, breeze, windward/leeward, currents). The 📌 buttons on the map and the place card pin what the
+map shows into the notes. Notes can be printed, saved as PDF, copied, or downloaded as text, and the place charts can be
+downloaded as a picture for slides. Everything stays in the student's own browser.
 
 ## Develop offline
 `python3 dev/make_sample_data.py` writes **synthetic** data (teacher passphrase `sample`), then `python3 -m http.server`.
