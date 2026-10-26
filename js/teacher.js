@@ -53,8 +53,10 @@ function renderTeacher() {
 function showStudent(o) {
   if (o.app !== 'pressure-map') { $('tstudent').innerHTML = '<p class="warn">That is not a weather project file.</p>'; return; }
   const pl = o.place, items = (o.notes && o.notes.items) || [], by = TOPICS.map(t => ({ t, items: items.filter(i => i.k === t.k) })).filter(g => g.items.length);
+  const pj = (o.proj && o.proj.items) || [], CN = { 'Cold Front': 'cold front', 'Warm Front': 'warm front', 'Stationary Front': 'stationary front', 'Occluded Front': 'occluded front' };
+  const proj = pj.length ? '<h4>🔮 Their projection (their own guess)</h4>' + pj.map(i => `<p class="tnote">${i.kind === 'front' ? esc(CN[i.type] || 'front') : (i.kind === 'H' ? 'High' : 'Low') + ' ' + Math.round(i.p) + ' hPa'}: toward ${Math.round(i.dir)}° at ${Math.round(i.spd * 0.621)} mph${i.kind !== 'front' && i.dp ? ', ' + (i.dp > 0 ? '+' : '') + i.dp + ' hPa/day' : ''}</p>`).join('') : '';
   $('tstudent').innerHTML = `<h3>${esc(o.student || '(no name)')}</h3><p class="small muted">Saved ${o.savedAt ? new Date(o.savedAt).toLocaleString() : ''} · ${items.length} notes</p>` +
-    (pl ? modelTable(pl.name, pl.lat, pl.lon) : '<p class="muted">This student has not chosen a place yet.</p>') +
+    (pl ? modelTable(pl.name, pl.lat, pl.lon) : '<p class="muted">This student has not chosen a place yet.</p>') + proj +
     (by.map(g => `<h4>${g.t.icon} ${esc(g.t.name)}</h4>` + g.items.map(i => `<p class="tnote">${i.pin ? '📌 ' : ''}${esc(i.text).replace(/\n/g, '<br>')}</p>`).join('')).join('') || '<p class="muted">No notes yet.</p>');
 }
 

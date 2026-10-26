@@ -48,6 +48,15 @@ In the teacher view the Play button runs from 48 hours ago straight through the 
   America chart too). The My Place card lists the nearest fronts (NOAA and student-drawn) and a distance ÷ speed arrival calculator
   where the student supplies the speed.
 
+## Predict: students play it forward themselves
+The **Predict** tab lets a student pick Highs, Lows and fronts from the newest map, set how each one moves (direction, speed, and for
+Highs/Lows how fast pressure changes), and press Play to watch their own projection over 72 hours. The measured motion of a High or Low is
+filled in (editable); a front starts at zero speed because estimating it from the 48-hour loop is the student's job. Readouts show how far each
+system is from their place at +24, +48 and +72 hours and when a front would reach it, always "in your projection".
+- It only moves the systems along the path the student chose. It has no temperature, wind or rain, and it never touches the model forecast
+  (the public data has none). It is labeled "not a forecast" on the tab and on the map.
+- Projections save with the student's work file and show in the teacher's view of a student file.
+
 ## Working over several days
 - **Saves automatically.** The place, notes, drawn fronts, units and the map view and settings are remembered in the student's browser, so
   they can close the page and continue tomorrow on the same computer.

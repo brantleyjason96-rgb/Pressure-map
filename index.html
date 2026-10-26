@@ -12,6 +12,7 @@
     <div id="samplebanner" hidden>SAMPLE DATA — not real weather</div>
     <button id="notechip" title="Open my notes">📝 Notes <b id="ncount">0</b></button>
     <div id="toast" role="status" aria-live="polite"></div>
+    <div id="prbadge" hidden>🔮 MY PROJECTION <b id="prbadgeT"></b> · not a forecast</div>
     <div id="maplegend" hidden>
       <div id="ltitle"></div><div id="legend"></div><div class="row"><span id="l0"></span><span id="l1"></span><span id="l2"></span></div>
     </div>
@@ -25,6 +26,7 @@
       <button data-dock="explore" title="Explore">🗺<span>Explore</span></button>
       <button data-dock="place" title="My Place">📍<span>Place</span></button>
       <button data-dock="local" title="Local effects">⛰️<span>Local</span></button>
+      <button data-dock="predict" title="Predict: play it forward">🔮<span>Predict</span></button>
       <button data-dock="notes" title="My Notes">📝<span>Notes</span></button>
     </nav>
   </main>
@@ -44,7 +46,8 @@
         <button data-tab="explore" role="tab" class="on" aria-selected="true"><span class="num">1</span>Explore</button>
         <button data-tab="place" role="tab" aria-selected="false"><span class="num">2</span>Place<i class="bdg" id="bplace"></i></button>
         <button data-tab="local" role="tab" aria-selected="false"><span class="num">3</span>Local</button>
-        <button data-tab="notes" role="tab" aria-selected="false"><span class="num">4</span>Notes<i class="bdg" id="bnotes"></i></button>
+        <button data-tab="predict" role="tab" aria-selected="false"><span class="num">4</span>Predict</button>
+        <button data-tab="notes" role="tab" aria-selected="false"><span class="num">5</span>Notes<i class="bdg" id="bnotes"></i></button>
         <button data-tab="teacher" role="tab" aria-selected="false" hidden>Teacher</button>
       </nav>
     </header>
@@ -139,7 +142,28 @@
         <div id="cbody" hidden></div></details>
       <details class="topic" open><summary>🌀 Ocean currents</summary>
         <div id="curbody" hidden></div></details>
-      <div class="pager"><button data-go="place" class="ghost">◀ My place</button><button data-go="notes" class="primary">Next: my notes ▶</button></div>
+      <div class="pager"><button data-go="place" class="ghost">◀ My place</button><button data-go="predict" class="primary">Next: play it forward ▶</button></div>
+    </section>
+
+    <section id="tab-predict" class="tab" role="tabpanel" hidden>
+      <h3>Play it forward</h3>
+      <p class="lead">Use what you learned to guess how the weather systems will move over the next 3 days, then <b>play your guess</b> on the map.</p>
+      <div class="disclaimer">🔮 This is <b>your projection</b>, not a forecast. It only slides the Highs, Lows and fronts the way <i>you</i> set them. It cannot tell you the temperature, wind or rain. You still have to work those out.</div>
+      <p id="prplace" class="small muted"></p>
+      <h4>1 · Choose what to move</h4>
+      <p class="small muted">Pick one, or click a High, Low or front on the map and press <b>🔮 Add</b>.</p>
+      <div id="pradds" class="starters"></div><p id="pradd" class="warn small"></p>
+      <h4>2 · Set how each one moves</h4>
+      <div id="pritems"></div>
+      <div id="prplayrow" hidden>
+        <h4>3 · Play it</h4>
+        <div class="inline"><button id="prplay" class="primary">▶ Play my projection</button><button id="prreset" class="ghost">Back to start</button></div>
+        <label class="block"><span id="prwhen"></span><input type="range" id="prt" min="0" max="72" step="3" value="0" aria-label="Projection time, from now to 72 hours ahead"></label>
+        <div class="ticks small muted"><span>Now</span><span>+24 h</span><span>+48 h</span><span>+72 h</span></div>
+        <p class="small muted">Check your guess against what you know: the speed it has been moving, the jet stream, how far away it is. Change the numbers and play again until it makes sense.</p>
+      </div>
+      <div class="actions"><button id="prpin" class="primary" hidden>📌 Add my projection to notes</button><button id="prclear" class="ghost">Clear projection</button></div>
+      <div class="pager"><button data-go="local" class="ghost">◀ Local effects</button><button data-go="notes" class="primary">Next: my notes ▶</button></div>
     </section>
 
     <section id="tab-notes" class="tab" role="tabpanel" hidden>
@@ -165,7 +189,7 @@
         <button id="nclear" class="ghost">Delete all</button>
       </div>
       <p class="muted small">Tip for slides: on the My Place tab, “Download these charts as a picture” gives you a clean image of your place’s past 48 hours. To capture the map, use your device’s screenshot tool.</p>
-      <div class="pager"><button data-go="local" class="ghost">◀ Local effects</button><span></span></div>
+      <div class="pager"><button data-go="predict" class="ghost">◀ Play it forward</button><span></span></div>
     </section>
 
     <section id="tab-teacher" class="tab" role="tabpanel" hidden><div id="tbody"></div></section>
@@ -185,6 +209,7 @@
     <li><b>Explore.</b> Slide the time bar through the last 48 hours. Watch Highs, Lows and fronts move. Click an <b>H</b> or <b>L</b> to see its speed and direction.</li>
     <li><b>My Place.</b> Choose a place. See its normal weather and what has been happening there.</li>
     <li><b>Local.</b> Check mountains, the coast and ocean currents. They change the weather in ways the big map can’t show.</li>
+    <li><b>Predict.</b> Choose Highs, Lows and fronts, set how fast and which way <i>you</i> think they will move, and play your guess forward 3 days. It is your projection, not a forecast.</li>
     <li><b>Notes.</b> Press <b>📌 Add to notes</b> whenever you find evidence. Use your notes to build your presentation.</li>
     <li><b>Save your work.</b> Press <b>💾 My work</b> to download a file. You can open it later, even on another computer.</li>
   </ol>

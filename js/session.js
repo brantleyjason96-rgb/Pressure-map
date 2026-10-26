@@ -6,7 +6,7 @@ import { currentTab, goTab, setCollapsed, isCollapsed, toast, openModal, closeMo
 import { noteCount, getNotes } from './notes.js';
 import { P } from './place.js';
 
-const KEYS = ['place', 'notes', 'drawn', 'fspeed', 'units'];       // what a work file carries
+const KEYS = ['place', 'notes', 'drawn', 'fspeed', 'proj', 'units'];       // what a work file carries
 const checks = () => [...document.querySelectorAll('#tab-explore input[type=checkbox]')];
 
 // ---- remember the map view and settings
@@ -36,7 +36,7 @@ export function exportWork() {
   o.ui = store.get('ui', null); return o;
 }
 const touched = () => +localStorage.getItem('pm.touched') || 0, backedUp = () => +localStorage.getItem('pm.backup') || 0;
-const hasWork = () => !!(P.place || noteCount() || (store.get('drawn', []).length));
+const hasWork = () => !!(P.place || noteCount() || (store.get('drawn', []).length) || ((store.get('proj', {}) || {}).items || []).length);
 export const needsBackup = () => hasWork() && touched() > backedUp();
 const when = t => t ? new Date(t).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : null;
 
@@ -62,14 +62,14 @@ async function open(file) {
 }
 function fresh() {
   if (!confirm('Start a NEW project? This erases the place, notes and fronts on this computer.\n\nSave a file first if you want to keep them.')) return;
-  for (const k of ['place', 'notes', 'drawn', 'fspeed', 'backup', 'ui']) store.del(k); location.reload();
+  for (const k of ['place', 'notes', 'drawn', 'fspeed', 'proj', 'backup', 'ui']) store.del(k); location.reload();
 }
 
 export function initSession() {
   $('mywork').onclick = () => { status(); openModal('work'); };
   $('wclose').onclick = () => closeModal('work'); $('wsave').onclick = download; $('nbackupbtn').onclick = download; $('wnew').onclick = fresh;
   $('wopen').onchange = e => { const f = e.target.files[0]; if (f) open(f); e.target.value = ''; };
-  for (const ev of ['noteschanged', 'placechange']) document.addEventListener(ev, refresh);
+  for (const ev of ['noteschanged', 'placechange', 'projchanged']) document.addEventListener(ev, refresh);
   setInterval(refresh, 60000); refresh();
   map.on('moveend', saveUI); $('tab-explore').addEventListener('change', saveUI);
   for (const ev of ['tabshow', 'layout']) document.addEventListener(ev, saveUI);

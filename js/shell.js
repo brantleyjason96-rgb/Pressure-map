@@ -4,7 +4,7 @@ import { map, flyTo } from './mapview.js';
 import { noteCount } from './notes.js';
 import { P } from './place.js';
 
-const TABS = ['explore', 'place', 'local', 'notes', 'teacher'];
+const TABS = ['explore', 'place', 'local', 'predict', 'notes', 'teacher'];
 export const currentTab = () => TABS.find(t => !$('tab-' + t).hidden);
 export const isCollapsed = () => $('app').classList.contains('collapsed');
 
