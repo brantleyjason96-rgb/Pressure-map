@@ -67,11 +67,24 @@ def encode(fr, nd):
     return None if fr is None else [[round(float(v), nd) if nd else int(round(v)) for v in row] for row in fr]
 
 
+def front_settings():
+    """Front-finder thresholds, so they can be tuned from the publish workflow without editing code: FRONT_GRAD_MIN (K per km)
+    and FRONT_MIN_KM. Empty or missing means the defaults in frontfind.py."""
+    cfg = {}
+    for env, key in (("FRONT_GRAD_MIN", "grad_min"), ("FRONT_MIN_KM", "min_km")):
+        try: cfg[key] = float(os.environ.get(env, "").strip())
+        except ValueError: pass
+    return cfg
+
+
+FRONT_CFG = front_settings()
+
+
 def fronts_for(r):
     """Fronts found from the 850 mb fields of one frame (1-degree grid). [] if NOAA's file lacked those fields."""
     if not all(k in r for k in ("t850", "r850", "u850", "v850")): return []
     th = theta_e(r["t850"], r["r850"], 850.0)
-    return detect_fronts(np.where(np.isfinite(th), th, np.nanmean(th)), r["u850"], r["v850"])
+    return detect_fronts(np.where(np.isfinite(th), th, np.nanmean(th)), r["u850"], r["v850"], FRONT_CFG)
 
 
 def fields_for(r, pr):
@@ -128,7 +141,7 @@ sst = make_sst(raw0)
 print("sea-surface temperature:", "ok" if sst else "NOT available (layers will be hidden)")
 json.dump({"cycle": t0.isoformat(), "hours": PAST, **grid, "sst": sst, "fr": past_fr, "f": collect(past)},
           open("data/pressure.json", "w"), separators=(",", ":"))
-print("wrote data/pressure.json for cycle", t0, "past frames only:", PAST, "| fronts per frame:", [len(x) for x in past_fr])
+print("front settings:", FRONT_CFG or "defaults"); print("wrote data/pressure.json for cycle", t0, "past frames only:", PAST, "| fronts per frame:", [len(x) for x in past_fr])
 
 pw = os.environ.get("TEACHER_PASSWORD")
 if not pw:

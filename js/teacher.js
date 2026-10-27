@@ -4,6 +4,7 @@ import { $, esc, fmtT, fmtS, fmtRain, compass, windFrom } from './util.js';
 import { P } from './place.js';
 import { TOPICS } from './notes.js';
 import { S, addForecast, sample, frameTime } from './data.js';
+import { servicePlaceholder, fillServices, loadForecasterCharts, frontCheckHTML } from './services.js';
 
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 async function decrypt(pw) {
@@ -37,16 +38,20 @@ function detail(lat, lon) { // every 6-hourly forecast frame at the place, in th
   }).join('');
 }
 const modelTable = (name, lat, lon) => `<p><b>${esc(name)}</b></p><table class="tt"><tr><th></th><th>High / Low</th><th>Max wind</th><th>Rain</th><th>hPa change</th></tr>${modelDays(lat, lon).map(row).join('')}</table><p class="small muted">${MODEL_NOTE}</p>
-  <details><summary>Every 6 hours (place’s local time)</summary><table class="tt"><tr><th>Time</th><th>Temp</th><th>Dewpt</th><th>hPa</th><th>Wind</th><th>Rain / 6 h</th></tr>${detail(lat, lon)}</table></details>`;
+  <details><summary>Every 6 hours (place’s local time)</summary><table class="tt"><tr><th>Time</th><th>Temp</th><th>Dewpt</th><th>hPa</th><th>Wind</th><th>Rain / 6 h</th></tr>${detail(lat, lon)}</table></details>` + servicePlaceholder(lat, lon);
 
+let chartsNote = 'Loading…';
 function renderTeacher() {
   const pl = P.place;
   $('tbody').innerHTML = `<p class="tb">Teacher view is ON. Forecast frames are loaded in this tab only. The time slider now continues past “Now” into orange <b>FORECAST</b> frames. Reload the page to lock.</p>
     <h4>Model forecast for the chosen place</h4><p class="small muted">To check a student’s presentation, pick their place on the My Place tab; this table updates.</p>` +
     (pl ? modelTable(pl.name, pl.lat, pl.lon) : '<p class="muted">No place chosen yet in this browser.</p>') +
-    `<h4>Open a student’s saved work</h4><p class="small muted">Choose the file a student saved with 💾 My work. You will see their notes next to the model forecast for their place.</p>
+    `<h4>NOAA forecasters’ fronts for the coming days</h4><p id="tcharts" class="small">${esc(chartsNote)}</p>
+    <h4>Front check: computer-found vs. NOAA</h4>${frontCheckHTML()}
+    <h4>Open a student’s saved work</h4><p class="small muted">Choose the file a student saved with 💾 My work. You will see their notes next to the model forecast for their place.</p>
     <input type="file" id="tfile" accept=".json" aria-label="Student work file"><div id="tstudent"></div><p><button id="tlock">Lock teacher view</button></p>`;
-  $('tfile').onchange = async e => { const f = e.target.files[0]; if (f) { try { showStudent(JSON.parse(await f.text())); } catch { $('tstudent').innerHTML = '<p class="warn">Could not read that file.</p>'; } } };
+  fillServices($('tbody'));
+  $('tfile').onchange = async e => { const f = e.target.files[0]; if (f) { try { showStudent(JSON.parse(await f.text())); fillServices($('tstudent')); } catch { $('tstudent').innerHTML = '<p class="warn">Could not read that file.</p>'; } } };
   $('tlock').onclick = () => location.reload();
 }
 
@@ -70,7 +75,9 @@ export function initTeacher() {
       $('terr').textContent = err.message === 'missing' ? 'Teacher view is not set up on this site yet (no teacher.enc file).' : 'That passphrase did not work.'; return;
     }
     close(); document.body.classList.add('teacher'); $('slider').max = S.hours.length - 1; $('tbtn').hidden = true;
+    loadForecasterCharts().then(d => { chartsNote = d.length ? `Forecaster-drawn fronts for ${d.join(', ')} are shown on the matching forecast days of the map (one chart per day) when “Fronts drawn by NOAA forecasters” is checked.` : 'No forecaster charts for coming days were available.'; if ($('tcharts')) $('tcharts').textContent = chartsNote; })
+      .catch(() => { chartsNote = 'Forecaster charts could not be loaded.'; if ($('tcharts')) $('tcharts').textContent = chartsNote; });
     renderTeacher(); document.querySelector('[data-tab="teacher"]').hidden = false; document.querySelector('[data-tab="teacher"]').click();
-    document.addEventListener('placechange', renderTeacher);
+    document.addEventListener('placechange', renderTeacher); document.addEventListener('units', renderTeacher);   // the forecast table is built from cached data, so no new requests
   };
 }

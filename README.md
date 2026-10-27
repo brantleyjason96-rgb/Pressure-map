@@ -27,6 +27,26 @@ The **Local** tab has two tools. Both use only the present wind and temperatures
 - **Land and sea breeze.** Finds the nearest sea or large lake (Natural Earth coastlines), shows a day/night cross-section driven by
   the place's own daily temperature cycle, and a checklist of what a breeze needs (near water, weak background wind, big daytime heating).
 
+## Where the data comes from, and its limits
+| What | Source | Covers | Notes |
+|---|---|---|---|
+| Pressure, temperature, wind, rain, jet stream (past 48 h) | NOAA GFS analyses | whole world | public file, students see it |
+| Forecast frames (to +96 h) | NOAA GFS | whole world | encrypted, **teacher only** |
+| Fronts drawn by forecasters | NOAA WPC / unified surface analysis | the Americas and the Atlantic and Pacific only (roughly the equator to 80°N, 130°E eastward to 10°E) | no free machine-readable official fronts were found for Europe, Africa, Asia or the Southern Hemisphere |
+| Fronts everywhere | `frontfind.py` on GFS 850 mb data | whole world | computer-found, rough, past frames for students, forecast frames for the teacher |
+| 3-day forecast for any place | Open-Meteo (ECMWF, ICON, GFS), non-commercial use, attribution required | whole world | **teacher only**, fetched only after the teacher unlocks |
+| Forecasters' fronts for the coming days | NOAA WPC Day 2 and 3 charts | North America | **teacher only** |
+
+Research notes: [WPC coded surface bulletin](http://www.wpc.ncep.noaa.gov/html/read_coded_bull.shtml) and [NOAA's unified analysis page](https://ocean.weather.gov/unified_analysis.php)
+describe the official fronts; [Open-Meteo terms](https://open-meteo.com/en/terms) cover the forecast service. The sandbox this was built in could not reach
+any of them, so the request and response shapes for Open-Meteo and the NOAA chart service are written defensively but **were only tested against mock
+responses**. If something does not show up on the live site, check the browser console and the publish log first.
+
+**Teacher front check.** The Teacher tab compares the computer-found fronts with NOAA's hand-drawn fronts wherever both exist (North America) and reports
+how many NOAA fronts it matched, how often it got the type right, and how many computer-found fronts have no NOAA front nearby. If it misses fronts
+or invents them, open Actions, choose publish-map, press **Run workflow**, and set `front_grad_min` (default 0.022; lower finds more fronts) or
+`front_min_km` (default 900). Leave them blank for the defaults.
+
 ## Fronts worldwide
 `frontfind.py` finds fronts anywhere on Earth from the model, using the thermal front parameter on 850 mb equivalent potential temperature:
 fronts lie along the sharpest temperature and moisture change; the wind across the line gives cold, warm or stationary. The data script
