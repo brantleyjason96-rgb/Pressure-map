@@ -100,7 +100,7 @@ def noaa_charts():
         props = feats[0].get("properties", {}); date = parse_date(props.get("popupconte"))
         kinds = {}
         for f in feats: kinds[f["properties"].get("feat")] = kinds.get(f["properties"].get("feat"), 0) + 1
-        print(f"layer {i}: {len(feats)} features, date {date.date() if date else '?'} | property keys: {sorted(props)[:8]} | popup: {str(props.get('popupconte'))[:110]!r} | kinds: {kinds}")
+        print(f"layer {i}: {len(feats)} features, date {date.date() if date else '?'} | popup: {str(props.get('popupconte'))[:110]!r} | filedate {props.get('idp_filedate')} ingest {props.get('idp_ingestdate')} | kinds: {kinds}")
         out.append(dict(id=i, date=date, feats=feats))
     return out
 
@@ -173,11 +173,32 @@ def main():
     kinds = {k: sum(1 for f in noaa if f["type"] == k) for k in sorted({f["type"] for f in noaa})}
     print(f"NOAA fronts in that chart: {len(noaa)} lines {kinds}; {len(ntab[0])} points after densifying")
 
+    # ---- NOAA's "Day 1" chart is a forecast for some hour today, not the 00Z analysis, so find the model time it matches best
+    frames = {0: (th, r["u850"], r["v850"], sp)}
+    if not SELFTEST:
+        for fh in (6, 12, 18, 24):
+            try:
+                rr = G.fetch(t0, fh); t_ = theta_e(rr["t850"], rr["r850"], 850.0)
+                frames[fh] = (np.where(np.isfinite(t_), t_, np.nanmean(t_)), rr["u850"], rr["v850"], rr["sp"] / 100 if "sp" in rr else None)
+            except Exception as e: print(f"  could not fetch f{fh:03d}: {e}")
+    def run_frame(fh, cfg):
+        fth, fu, fv, fsp = frames[fh]
+        return [dict(type=f["t"], g=f["g"], pts=[tuple(p) for p in f["p"]]) for f in detect_fronts(fth, fu, fv, cfg, surface_hpa=fsp)]
+    print("\n=== Which model time does NOAA's chart match? (current default settings) ===")
+    print("  model time          | fronts worldwide | NOAA covered | type ok | computer fronts in NA w/o NOAA nearby | score")
+    best_fh, best_score = 0, -1
+    for fh in sorted(frames):
+        fr = run_frame(fh, {}); cm = compare(ntab, vertex_table(fr), fr)
+        if cm and cm["f1"] > best_score: best_fh, best_score = fh, cm["f1"]
+        print(f"  {t0:%d %HZ} + {fh:>2} h  | {len(fr):>16} | " + (f"{cm['cover'] * 100:>10.0f}% | {cm['same'] * 100:>6.0f}% | {cm['bad']:>3} of {cm['found']:<30} | {cm['f1']:.2f}" if cm else "no NOAA fronts"))
+    print(f"Best match: analysis + {best_fh} h. Everything below uses that model time.")
+    th, u850, v850, sp = frames[best_fh]; r = dict(r, u850=u850, v850=v850)
+
     # ---- try a grid of settings
     def run(cfg):
-        fr = detect_fronts(th, r["u850"], r["v850"], cfg, surface_hpa=sp)
+        fr = detect_fronts(th, u850, v850, cfg, surface_hpa=sp)
         return [dict(type=f["t"], g=f["g"], pts=[tuple(p) for p in f["p"]]) for f in fr]
-    grid = [dict(grad_min=g, min_km=m, curvature=c, terrain_hpa=(DEFAULT["terrain_hpa"] if t else 0)) for g, m, c, t in itertools.product((0.035, 0.05, 0.07, 0.1), (1200, 1800), (True, False), (True, False))]
+    grid = [dict(grad_min=g, min_km=m, curvature=c, terrain_hpa=(DEFAULT["terrain_hpa"] if t else 0)) for g, m, c, t in itertools.product((0.025, 0.03, 0.035, 0.04, 0.05, 0.06), (900, 1200, 1800), (True, False), (True,))]
     results = []
     print("\n=== Settings compared with NOAA (North America) ===")
     print("  grad_min min_km curv terrain | global  NA | NOAA covered  type ok | computer fronts in NA  without NOAA nearby  precision |  score")
@@ -192,7 +213,7 @@ def main():
     print(f"\nCurrent defaults {({k: DEFAULT[k] for k in ('grad_min', 'min_km', 'curvature', 'terrain_hpa', 'lat_lo')})}: {len(default_fr)} fronts worldwide" + (f"; NOAA covered {dcm['cover'] * 100:.0f}%, type ok {dcm['same'] * 100:.0f}%, {dcm['bad']} of {dcm['found']} computer fronts in North America have no NOAA front nearby" if dcm else ""))
     results.sort(key=lambda x: -x[0]); best = results[0]
     print(f"Best of the grid by score: {best[1]} -> {len(best[2])} fronts worldwide, score {best[0]:.2f}")
-    ascii_map(ntab, default_tab, "Current defaults vs NOAA"); ascii_map(ntab, best[3], "Best grid setting vs NOAA")
+    ascii_map(ntab, default_tab, f"Current defaults at +{best_fh} h vs NOAA"); ascii_map(ntab, best[3], f"Best grid setting at +{best_fh} h vs NOAA")
 
     # ---- the US / Canada border
     border = dict(lat=(42, 56), lon=(-128, -60))
