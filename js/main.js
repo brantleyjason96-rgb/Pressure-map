@@ -12,6 +12,7 @@ import { initTools } from './tools.js';
 import { initPredict } from './predict.js';
 import { initShell, openModal } from './shell.js';
 import { initSession, restoreUI } from './session.js';
+import { initLayers } from './layers.js';
 
 $('units').value = U.sys; $('units').onchange = e => setUnits(e.target.value);
 if ($('ver').textContent.includes('__BUILD__')) $('ver').textContent = 'local copy (not published)';
@@ -40,6 +41,7 @@ initShell();
     });
     setFrame(S.cur);
     restoreUI();
+    initLayers();
     loadFronts();
     $('loading').hidden = true;
     if (!store.get('seenHelp', false)) { openModal('help'); store.set('seenHelp', true); }

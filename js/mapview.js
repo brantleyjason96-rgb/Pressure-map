@@ -17,14 +17,14 @@ const GCOL = [[0.4, [255, 245, 160]], [1.2, [255, 200, 70]], [2.5, [245, 120, 40
 const dC = c => U.sys === 'us' ? Math.round(c * 1.8) : Math.round(c);   // a temperature difference, so no +32
 const flipped = stops => stops.map(([v], i) => [v, stops[stops.length - 1 - i][1]]);
 export const MODES = {
-  p: { f: 'p', stops: PCOL, col: p => [...ramp(on('flip') ? flipped(PCOL) : PCOL, Math.max(980, p)), 150], l: () => ['980', '1013', '1045 hPa'] },
+  p: { f: 'p', stops: PCOL, col: p => [...ramp(on('flip') ? flipped(PCOL) : PCOL, Math.max(980, p)), 150], l: () => ['Low 980', 'Average 1013', 'High 1045 hPa'] },
   t: { f: 't', stops: TCOL, col: v => [...ramp(TCOL, v), 140], l: () => [fmtT(-40), fmtT(10), fmtT(50)] },
   d: { f: 'd', stops: DCOL, col: v => [...ramp(DCOL, Math.max(-30, v)), 150], l: () => ['dry ' + fmtT(-30), fmtT(0), 'humid ' + fmtT(24)] },
-  pr: { f: 'pr', stops: RCOL, col: v => { const c = ramp(RCOL, v); return c && [...c, Math.min(190, (v - 0.3) * 600)]; }, l: () => ['0.3 mm', '6', '50+ mm in the 6 h before'] },
+  pr: { f: 'pr', stops: RCOL, col: v => { const c = ramp(RCOL, v); return c && [...c, Math.min(190, (v - 0.3) * 600)]; }, l: () => ['Light ' + fmtRain(0.3), fmtRain(6), 'Heavy ' + fmtRain(50) + '+'] },
   sst: { grid: () => S.D.sst, stops: SCOL, col: v => [...ramp(SCOL, Math.max(-2, v)), 175], l: () => [fmtT(-2), fmtT(20), fmtT(33)] },
   sstA: { grid: () => S.D.sstA, stops: ACOL, col: v => [...ramp(ACOL, Math.max(-6, Math.min(6, v))), Math.min(190, 70 + Math.abs(v) * 30)], l: () => [`${dC(6)}° colder`, 'normal for the latitude', `${dC(6)}° warmer`] },
   tg: { grid: () => gradientGrid(S.cur), stops: GCOL, col: v => { const c = ramp(GCOL, v); return c && [...c, Math.min(200, 40 + (v - .4) * 150)]; }, l: () => [`${dC(0.4)}°`, `${dC(2.5)}°`, `${dC(4.5)}°+ per 100 km`] },
-  w5: { f: 'w5', stops: JCOL, col: v => { const c = ramp(JCOL, v); return c && [...c, 170]; }, l: () => ['30 kt', '90', '150+ kt'] },
+  w5: { f: 'w5', stops: JCOL, col: v => { const c = ramp(JCOL, v); return c && [...c, 170]; }, l: () => [fmtS(15.4), fmtS(46.3), 'Fast ' + fmtS(77.2) + '+'] },
 };
 const PLEV = range(948, 1068, 4), HLEV = range(4800, 6000, 60);
 const FCOL = { 'Cold Front': '#3b82ff', 'Warm Front': '#ff3b3b', 'Stationary Front': '#3b82ff', 'Occluded Front': '#b043ff', 'Trough': '#d9a066' };

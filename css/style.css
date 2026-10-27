@@ -199,3 +199,14 @@ ol.steps4{padding-left:22px;line-height:1.5}ol.steps4 li{margin:8px 0}
 #tabs button{padding:8px 0;font-size:12px}
 #tabs button .num{margin-right:3px}
 @media(max-width:800px){#prbadge{top:84px}}
+
+/* ---- Explore: one-tap views */
+.presets{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0}
+.presets button{display:flex;align-items:center;gap:8px;text-align:left;padding:10px;font-weight:600;border:2px solid transparent;font-size:14px}
+.presets button .pi{font-size:20px}
+.presets button[aria-pressed=true]{border-color:var(--accent);background:#2459d633}
+#pcardx{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:8px 0}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible,textarea:focus-visible{outline:3px solid #ffd23f;outline-offset:2px}
+.bar .cap{font-size:13px;white-space:nowrap}
+@media(max-width:800px){.bar .cap{display:none}}
+#frkey{font-size:13px}

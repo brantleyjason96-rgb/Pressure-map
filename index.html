@@ -17,6 +17,7 @@
       <div id="ltitle"></div><div id="legend"></div><div class="row"><span id="l0"></span><span id="l1"></span><span id="l2"></span></div>
     </div>
     <div class="bar">
+      <span class="cap">Time:</span>
       <button id="play" title="Play the last 48 hours as a loop">▶ Play</button>
       <input type="range" id="slider" min="0" max="8" value="8" step="1" aria-label="Time: slide from 48 hours ago to now">
       <button id="nowbtn" title="Jump to the newest map">Now</button>
@@ -54,43 +55,54 @@
 
     <section id="tab-explore" class="tab" role="tabpanel">
       <p class="lead">Slide the time bar to watch the <b>last 48 hours</b>. Click the map for details. The future is for <b>you</b> to forecast.</p>
-      <div class="views"><button data-view="[[39.99,-99.77],4]">North America</button> <button data-view="[[20,0],2]">World</button> <button id="goplace">📍 My place</button></div>
+      <div class="views" role="group" aria-label="Zoom the map"><button data-view="[[39.99,-99.77],4]">North America</button> <button data-view="[[20,0],2]">Whole world</button> <button id="goplace">📍 My place</button></div>
 
-      <details class="grp" open><summary>🎨 Map colors</summary>
-        <label class="block">Show <select id="shade">
-          <option value="p">Surface pressure</option>
-          <option value="t">Temperature</option>
-          <option value="d">Dewpoint (how humid)</option>
-          <option value="pr">Rain in the 6 h before</option>
-          <option value="tg">Temperature contrast (find the fronts)</option>
-          <option value="sst">Sea-surface temperature</option>
-          <option value="sstA">Sea temperature vs. normal (shows currents)</option>
-          <option value="w5">Jet stream (500 mb wind speed)</option>
-          <option value="none">None</option>
-        </select></label>
-        <label id="fliprow"><input type="checkbox" id="flip" checked> Low = warm colors, High = cool colors</label>
-        <p id="note2" class="muted small"></p>
-      </details>
-
-      <details class="grp" open><summary>📈 Lines and symbols</summary>
-        <label><input type="checkbox" id="iso" checked> Isobars (hPa)</label>
-        <label><input type="checkbox" id="h5l"> 500 mb height lines (dam)</label>
-        <label><input type="checkbox" id="hl" checked> H / L centers</label>
-        <label><input type="checkbox" id="trk" checked> Where each H and L has been (dotted trail)</label>
-        <label><input type="checkbox" id="wind"> Wind arrows (model winds)</label>
-        <label><input type="checkbox" id="frd" checked> Fronts found by computer (worldwide)</label>
-        <label><input type="checkbox" id="fr" checked> Fronts drawn by NOAA forecasters (North America)</label>
-        <label><input type="checkbox" id="cur"> Ocean currents (red = warm, blue = cold)</label>
-        <label><input type="checkbox" id="stt" checked> Borders</label>
-        <div class="key">
-          <span style="color:#3b82ff">▲</span> cold front &nbsp;<span style="color:#ff3b3b">●</span> warm front<br>
-          <span style="color:#b043ff">▲●</span> occluded &nbsp;<span style="color:#3b82ff">▲</span><span style="color:#ff3b3b">●</span> stationary &nbsp;<span style="color:#d9a066">- - -</span> trough
+      <h4>Pick one thing to look at</h4>
+      <div id="presets" class="presets" role="group" aria-label="What to show on the map"></div>
+      <div class="card" id="pcardx">
+        <div id="pdesc"></div>
+        <div id="frkey" class="key" hidden>
+          <b>Front symbols</b> (they point the way the front is moving)<br>
+          <span style="color:#3b82ff">▲</span> Cold front: cold air pushing in<br>
+          <span style="color:#ff3b3b">●</span> Warm front: warm air pushing in<br>
+          <span style="color:#b043ff">▲●</span> Occluded: a cold front caught up to a warm front<br>
+          <span style="color:#3b82ff">▲</span><span style="color:#ff3b3b">●</span> Stationary: not moving<br>
+          <span style="color:#d9a066">- - -</span> Trough: a stretched-out area of low pressure<br>
+          <b>Thick lines</b> were drawn by forecasters (North America only). <b>Thin lines</b> were found by a computer from the model’s temperature and humidity at about 5,000 ft. They are rough and can miss a front or add one that isn’t there.
         </div>
         <p id="frnote" class="muted small"></p>
-        <p class="muted small">Computer-found fronts are drawn thinner and come from the model’s temperature and humidity at about 5,000 ft (850 mb), so they are rough: they can miss a front or add one that isn’t there. They are on every map in the 48-hour loop, so you can watch them move.</p>
+        <p id="note2" class="muted small"></p>
+      </div>
+
+      <details class="grp"><summary>⚙️ Change the map yourself (optional)</summary>
+        <p class="muted small">The buttons above set these for you. Change them only if you want a different mix. Your choices save automatically.</p>
+        <label class="block">Color the map by <select id="shade">
+          <option value="p">Air pressure (hPa = millibars)</option>
+          <option value="t">Temperature</option>
+          <option value="d">Dewpoint (how humid the air is)</option>
+          <option value="pr">Rain in the 6 hours before</option>
+          <option value="tg">Temperature contrast (fronts hide here)</option>
+          <option value="sst">Sea-surface temperature</option>
+          <option value="sstA">Sea temperature vs. normal (shows currents)</option>
+          <option value="w5">Jet stream wind speed (about 18,000 ft up)</option>
+          <option value="none">No colors</option>
+        </select></label>
+        <label id="fliprow"><input type="checkbox" id="flip" checked> Pressure colors: Low = warm (red), High = cool (blue)</label>
+        <h4>Lines and symbols</h4>
+        <label><input type="checkbox" id="iso"> Pressure lines (isobars, in hPa)</label>
+        <label><input type="checkbox" id="h5l"> Jet stream height lines (dashed purple)</label>
+        <label><input type="checkbox" id="hl"> H and L markers (click one for its speed)</label>
+        <label><input type="checkbox" id="trk"> Dotted trails: where each H and L has been</label>
+        <label><input type="checkbox" id="wind"> Wind arrows (from the model)</label>
+        <label><input type="checkbox" id="frd"> Fronts found by computer (whole world, thin)</label>
+        <label><input type="checkbox" id="fr"> Fronts drawn by forecasters (North America, thick)</label>
+        <label><input type="checkbox" id="cur"> Ocean currents (red = warm, blue = cold)</label>
+        <label><input type="checkbox" id="stt" checked> Country and state borders</label>
+        <label class="block">Map style <select id="base"><option value="dark">Dark</option><option value="terrain">Terrain (shows mountains)</option></select></label>
       </details>
 
-      <details class="grp" open><summary>🧰 Tools</summary>
+      <details class="grp"><summary>🧰 Measure and draw</summary>
+        <p class="muted small"><b>Measure distance:</b> press the button, then click two spots on the map. <b>Draw a front:</b> choose a type, press the button, click along the front, then press Finish.</p>
         <div class="inline"><button id="ruler">📏 Measure distance</button><span id="rulerout" class="small"></span></div>
         <div class="inline"><select id="ftype" aria-label="Front type to draw"><option>Cold Front</option><option>Warm Front</option><option>Stationary Front</option><option>Occluded Front</option><option>Trough</option></select>
           <button id="fdraw">✏️ Draw a front</button></div>
@@ -98,11 +110,7 @@
         <p id="fhelp" class="small muted"></p>
       </details>
 
-      <details class="grp"><summary>🗺 Base map</summary>
-        <label class="block">Map style <select id="base"><option value="dark">Dark</option><option value="terrain">Terrain (mountains)</option></select></label>
-      </details>
-
-      <details class="grp"><summary>📖 How to read this map</summary>
+      <details class="grp"><summary>📖 How to read this map (full guide)</summary>
         <p><b>Isobars</b> connect points with equal pressure. Lines close together = big pressure change over a short distance = <b>strong wind</b>.</p>
         <p><b>Wind</b> blows from high toward low pressure, but Earth’s rotation bends it: in the <b>Northern Hemisphere</b> clockwise &amp; outward around a High, counterclockwise &amp; inward around a Low. In the <b>Southern Hemisphere</b> it is the opposite.</p>
         <p><b>Highs</b>: air sinks → clear, calm. <b>Lows</b>: air rises → clouds and precipitation.</p>
@@ -113,7 +121,8 @@
         <p class="muted">Pressure, temperature, wind and rain are NOAA GFS model analyses. Fronts are forecasters’ hand analysis.</p>
       </details>
       <details class="grp"><summary>❓ Quiz me</summary>
-        <p><button id="qgo">New question</button> <span id="score"></span></p>
+        <p class="muted small">Test what you know. Some questions ask you to click on the map.</p>
+        <p><button id="qgo">Start quiz</button> <span id="score"></span></p>
         <div id="qbox"></div>
       </details>
       <div class="pager"><span></span><button data-go="place" class="primary">Next: choose my place ▶</button></div>

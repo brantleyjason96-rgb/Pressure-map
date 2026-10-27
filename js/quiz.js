@@ -1,6 +1,7 @@
 // "Quiz me": click-the-High/Low/front questions on the live map, plus concept questions.
 import { $ } from './util.js';
 import { S, frameInfo } from './data.js';
+import { applyPreset } from './layers.js';
 import { view, hooks, map, redraw, frontLines, frType, frLines } from './mapview.js';
 
 const CONCEPTS = [
@@ -28,23 +29,24 @@ export function nextQ() {
   ['H', 'L'].forEach(t => ex.some(e => e.t === t) && pool.push({ k: 'pt', t }));
   if (fr) ['Cold Front', 'Warm Front'].forEach(t => fr.some(f => frType(f) === t) && pool.push({ k: 'fr', t }));
   CONCEPTS.forEach(c => pool.push({ k: 'mc', ...c }));
-  Q = pick(pool); Q.done = false; const b = $('qbox');
-  if (Q.k === 'pt') b.innerHTML = `Click the center of a <b>${Q.t === 'H' ? 'High' : 'Low'}</b>-pressure system on the map.<p><button data-show>Show me</button></p>`;
-  else if (Q.k === 'fr') b.innerHTML = `Click on a <b>${Q.t.toLowerCase()}</b>.<p><button data-show>Show me</button></p>`;
+  Q = pick(pool); Q.done = false; const b = $('qbox'); $('qgo').textContent = 'Next question';
+  if (Q.k === 'fr' && !$('fr').checked) applyPreset('fr');   // the question needs the forecasters' fronts showing
+  if (Q.k === 'pt') b.innerHTML = `Click the center of a <b>${Q.t === 'H' ? 'High' : 'Low'}</b>-pressure system on the map.<p><button data-show>Show me where</button></p>`;
+  else if (Q.k === 'fr') b.innerHTML = `Click on a <b>${Q.t.toLowerCase()}</b>.<p><button data-show>Show me where</button></p>`;
   else b.innerHTML = `<b>${Q.q}</b>` + Q.o.map((o, i) => `<button data-i="${i}">${o}</button>`).join('');
   redraw();
 }
 function result(ok, msg) {
   Q.done = ok || Q.done; if (!Q.tried) { score[1]++; if (ok) score[0]++; } Q.tried = true;   // only the first attempt counts
-  $('score').textContent = `${score[0]}/${score[1]}`;
+  $('score').textContent = `Score: ${score[0]} right out of ${score[1]} (first tries only)`;
   $('qbox').innerHTML += `<p class="${ok ? 'ok' : 'no'}">${ok ? '✔ ' : '✘ '}${msg}</p>`;
 }
 function answerClick(e) {
   let ok = false, msg;
   if (Q.k === 'pt') {
     const hit = frameInfo(S.cur).ex.find(v => v.t === Q.t && Math.hypot(v.lat - e.latlng.lat, (v.lon - e.latlng.lng) * Math.cos(v.lat * Math.PI / 180)) < 7);
-    ok = !!hit; msg = ok ? `That ${Q.t === 'H' ? 'High' : 'Low'} is about ${Math.round(hit.v)} hPa. Click “New question” to continue.` :
-      `Look for the ${Q.t === 'H' ? 'highest' : 'lowest'} pressure — closed isobar circles around an ${Q.t}. Try again or “Show me”.`;
+    ok = !!hit; msg = ok ? `That ${Q.t === 'H' ? 'High' : 'Low'} is about ${Math.round(hit.v)} hPa. Press “Next question” to continue.` :
+      `Look for the ${Q.t === 'H' ? 'highest' : 'lowest'} pressure — closed isobar circles around an ${Q.t}. Try again or press “Show me where”.`;
   } else {
     const pt = map.latLngToContainerPoint(e.latlng);
     ok = fronts().filter(f => frType(f) === Q.t).some(f => frLines(f, map).some(P => P.some((p, i) => {
