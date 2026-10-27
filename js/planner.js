@@ -11,11 +11,11 @@ const TREND = ['Rising', 'Steady', 'Falling'];
 export const blankDay = () => ({ hi: null, lo: null, sky: '', prec: '', chance: '', wdir: '', wspd: null, trend: '', why: '' });
 export const PLAN = Object.assign({ days: [blankDay(), blankDay(), blankDay()], unsure: '' }, store.get('plan', {}));
 while (PLAN.days.length < 3) PLAN.days.push(blankDay());
-const save = () => store.set('plan', PLAN);
+const save = () => { store.set('plan', PLAN); document.dispatchEvent(new Event('planchange')); };
 
 const need = d => ['hi', 'lo', 'sky', 'prec', 'wdir', 'wspd', 'trend', 'why'].concat(d.prec && d.prec !== 'None' ? ['chance'] : []);
 const done = d => need(d).filter(k => d[k] !== null && d[k] !== '').length;
-const dayName = n => { const t = new Date(); t.setDate(t.getDate() + n); return t.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }); };
+export const dayName = n => { const t = new Date(); t.setDate(t.getDate() + n); return t.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }); };
 const opts = (list, cur, fmt = x => x) => '<option value="">Choose…</option>' + list.map(x => `<option value="${x}" ${String(cur) === String(x) ? 'selected' : ''}>${esc(fmt(x))}</option>`).join('');
 const num = (c, f) => c == null ? '' : Math.round(f(c));
 
@@ -60,6 +60,19 @@ function onInput(e) {
   save(); card.querySelector('[data-count]').textContent = `${done(d)} of ${need(d).length} done`;
   card.querySelector('[data-f=chance]').closest('label').hidden = d.prec === 'None';
 }
+export const planTotal = () => PLAN.days.reduce((n, d) => n + need(d).length, 0);
+export function planFlags() {   // gentle "do these fit together?" nudges, not errors
+  const f = [], D = PLAN.days;
+  D.forEach((d, i) => { const n = i + 1;
+    if (d.hi != null && d.lo != null && d.lo > d.hi) f.push(`Day ${n}: the low is higher than the high.`);
+    if (d.prec === 'Snow' && d.hi != null && d.hi > 4) f.push(`Day ${n}: snow is unlikely when the high is above 40°F (4°C).`);
+    if (d.prec && d.prec !== 'None' && d.sky === 'Clear') f.push(`Day ${n}: rain or snow does not fit with a clear sky.`);
+    if (d.trend === 'Falling' && d.sky === 'Clear') f.push(`Day ${n}: pressure is falling but the sky is clear. Falling pressure usually brings clouds.`);
+  });
+  if (D.every(d => d.hi != null && d.sky && d.prec && d.wdir && d.trend) && ['hi', 'lo', 'sky', 'prec', 'wdir', 'trend'].every(k => D.every(d => d[k] === D[0][k]))) f.push('All three days look the same. Will anything change as the systems move?');
+  return f;
+}
+export const daysWithReason = () => PLAN.days.filter(d => d.why.trim()).length;
 export function planDone() { return PLAN.days.reduce((n, d) => n + done(d), 0); }
 export function planText() {
   const f = d => `High ${num(d.hi, tempOut)}${tUnit()}, low ${num(d.lo, tempOut)}${tUnit()}; sky: ${d.sky || '?'}; ${d.prec === 'None' ? 'no rain or snow' : (d.prec || '?') + (d.chance ? ' (' + d.chance + '% chance)' : '')}; wind from the ${d.wdir || '?'} at ${num(d.wspd, spdOut)} ${sUnit()}; pressure ${(d.trend || '?').toLowerCase()}. Why: ${d.why || '—'}`;

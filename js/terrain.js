@@ -1,6 +1,7 @@
 // Local effects: windward and leeward. Cuts a terrain profile along the wind through the place, says which side of the
 // mountains the place is on, and steps an air parcel over the ridge. All from the present wind and fixed terrain.
 import { $, esc, fmtT, fmtElev, fmtD, compass, tempOut, tempIn, tUnit, U } from './util.js';
+import { setLocal } from './evid.js';
 import { S, sample } from './data.js';
 import { P, pastSeries } from './place.js';
 import { view, hooks, map, redraw } from './mapview.js';
@@ -113,7 +114,7 @@ function summary() {
 function drawAll() {
   if (!T.prof) return;
   T.par = parcel(T.prof.z, T.prof.step, T.T0, T.Td0);
-  const { lab, txt, note } = summary();
+  const { lab, txt, note } = summary(); setLocal('oro', { kind: T.res.kind });
   $('mres').innerHTML = `${lab ? `<div class="verdict ${T.res.kind}">${esc(lab[0].toUpperCase() + lab.slice(1))}</div>` : ''}<p>${txt}</p><button class="pinbtn" data-topic="oro" data-text="${esc(note)}">📌 Add to notes</button>`;
   $('msvg').innerHTML = svg(); $('mtext').innerHTML = STEPS(T.par)[T.step]; $('mstep').textContent = `Step ${T.step + 1} of 4`;
   $('mprev').disabled = T.step === 0; $('mnext').disabled = T.step === 3;

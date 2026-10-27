@@ -1,6 +1,7 @@
 // Local effects: land and sea breeze. Finds the nearest water, then shows how the land-versus-water temperature difference
 // over a day turns the breeze on and off. Uses the place's temperatures over the PAST 48 hours to show its daily cycle.
 import { $, esc, fmtT, fmtS, fmtD, compass, tempOut, tempIn, tUnit } from './util.js';
+import { setLocal } from './evid.js';
 import { S, sample } from './data.js';
 import { P, pastSeries } from './place.js';
 import { view, redraw } from './mapview.js';
@@ -97,9 +98,9 @@ async function refresh() {
   const ok = !!(P.place && S.D); $('cbody').hidden = !ok; if (!ok) { view.coast = null; redraw(); return; }
   $('cmsg').textContent = 'Finding the nearest coast…'; $('cmsg').hidden = false; $('clab').hidden = true; $('cfacts').innerHTML = '';
   try { await masks(); await compute(); } catch { $('cmsg').textContent = 'Coastline lookup needs an internet connection. Try again in a moment.'; return; }
-  if (C.info.onWater) { $('cmsg').textContent = 'This place is over water. Pick a place on land to study land and sea breezes.'; return; }
-  if (C.info.none) { $('cmsg').textContent = 'No coastline found in the data.'; return; }
-  $('cmsg').hidden = true; $('clab').hidden = false; render();
+  if (C.info.onWater) { setLocal('coast', { over: true }); $('cmsg').textContent = 'This place is over water. Pick a place on land to study land and sea breezes.'; return; }
+  if (C.info.none) { setLocal('coast', { km: 9999 }); $('cmsg').textContent = 'No coastline found in the data.'; return; }
+  $('cmsg').hidden = true; $('clab').hidden = false; setLocal('coast', { km: C.info.km, water: C.info.type }); render();
 }
 export const refreshCoast = refresh;
 export async function coastFor(pl) { await masks(); return coastInfo(pl.lat, pl.lon, land, lakes); }   // used by the ocean-current tool

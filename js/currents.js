@@ -1,6 +1,7 @@
 // Ocean currents: a fixed teaching dataset (data/currents.json) drawn on the map, plus the "Ocean currents" tool in the Local tab.
 // The tool finds the nearest current, the sea temperature offshore from the place (newest analysis), and compares water with air.
 import { $, on, esc, fmtT, fmtD, compass, tempOut, tUnit } from './util.js';
+import { setLocal } from './evid.js';
 import { S, sample } from './data.js';
 import { P, pastSeries } from './place.js';
 import { view, hooks, map, redraw, flyTo } from './mapview.js';
@@ -50,6 +51,7 @@ export async function refreshCurrents() {
   const parts = [];
   parts.push(`<p><b>Nearest current:</b> ${esc(top.c.name)} ${badge(top.c)}<br>${esc(fmtD(top.km))} to the ${compass(top.toward)}. The water there flows toward the ${compass(top.flow)}.</p>
     <p>${esc(top.c.desc)}</p><ul class="eff">${top.c.effects.map(e => `<li>${esc(e)}</li>`).join('')}</ul>`);
+  setLocal('cur', { name: top.c.name, kind: top.c.kind, km: top.km });
   const reach = top.km <= 400 ? 'This current is <b>close</b>: it can strongly change the air over your coast.' : top.km <= 1500 ? 'This current is <b>within reach</b>: winds blowing from the ocean toward you can bring its effects.' : 'This current is <b>far away</b>. Think about whether winds ever carry its air to you.';
   parts.push(`<p>${reach}</p>`);
   if (near.length > 1) parts.push(`<p class="small muted">Other currents nearby: ${near.slice(1).map(x => `${esc(x.c.name)} (${x.c.kind}, ${esc(fmtD(x.km))})`).join('; ')}.</p>`);

@@ -12,6 +12,11 @@ export function setCollapsed(v) {
   $('app').classList.toggle('collapsed', v); $('dock').hidden = !v; $('hide').setAttribute('aria-expanded', String(!v));
   setTimeout(() => map && map.invalidateSize(), 260); document.dispatchEvent(new Event('layout'));
 }
+export const isWide = () => $('app').classList.contains('wide');
+export function setWide(v) {   // the panel takes 3/4 of the screen, for working on the data
+  $('app').classList.toggle('wide', v); $('widebtn').textContent = v ? '↔ Narrower' : '↔ Wider'; $('widebtn').setAttribute('aria-pressed', String(v));
+  setTimeout(() => map && map.invalidateSize(), 260); document.dispatchEvent(new Event('layout'));
+}
 export function goTab(name, { expand = true } = {}) {
   if (expand && isCollapsed()) setCollapsed(false);
   document.querySelectorAll('#tabs button').forEach(b => { const on = b.dataset.tab === name; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
@@ -40,7 +45,7 @@ export function initShell() {
   });
   document.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) goTab(g.dataset.go); });
   document.querySelectorAll('[data-dock]').forEach(b => b.onclick = () => goTab(b.dataset.dock));
-  $('hide').onclick = () => setCollapsed(true);
+  $('hide').onclick = () => setCollapsed(true); $('widebtn').onclick = () => setWide(!isWide());
   $('notechip').onclick = () => goTab('notes');
   $('goplace').onclick = () => { if (P.place) flyTo(P.place.lat, P.place.lon, 6); else { toast('Choose your place first'); goTab('place'); } };
   $('helpbtn').onclick = () => openModal('help'); $('helpclose').onclick = () => closeModal('help');

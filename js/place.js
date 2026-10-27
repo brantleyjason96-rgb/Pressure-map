@@ -2,6 +2,7 @@
 // Nothing here looks forward in time.
 import { $, esc, store, fmtT, fmtS, fmtP, fmtD, fmtRain, fmtElev, compass, windFrom, tempOut, spdOut, tUnit, sUnit, distKm, bearing, range } from './util.js';
 import { S, sample, nearestSystem, frameTime } from './data.js';
+import { markEvid } from './evid.js';
 import { hooks, setPin, flyTo, map, redraw } from './mapview.js';
 
 export const P = { place: store.get('place', null), picking: false, normals: null };
@@ -164,7 +165,7 @@ export function initPlace() {
   $('pcard').addEventListener('click', e => {
     const b = e.target.closest('.pinbtn');
     if (b) { document.dispatchEvent(new CustomEvent('pinnote', { detail: { topic: b.dataset.topic, text: b.dataset.text } })); b.textContent = '✓ Added to notes'; b.disabled = true; return; }
-    if (e.target.id === 'pchartdl') chartsPNG();
+    if (e.target.id === 'pchartdl') { chartsPNG(); markEvid('chart'); }
   });
   $('pgo').onclick = async () => {
     const q = $('pq').value.trim(); if (!q) return;

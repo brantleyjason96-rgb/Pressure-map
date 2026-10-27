@@ -105,3 +105,10 @@ The **🌐 language menu** in the panel header switches the whole site between E
 - Anything without a translation stays in English. Known gaps: the step-by-step explanations on the **Local** tab (mountain, sea breeze and ocean-current text built from the place's data), the Teacher view, and the map's own labels.
 - The translations were machine-written and have not been checked by a fluent speaker. Have one review them, especially the weather vocabulary, and fix any line directly in the JSON file.
 - To add or fix text: open the site with `?i18n=1`, which records untranslated strings in `missing` of the i18n module, then add them to each `lang/*.json`.
+
+## Student helpers (Notes tab, Local tab, header)
+- **✅ Check my work** follows the five rubric categories and ticks itself: place chosen, notes saved, plan boxes filled, reasons written, three kinds of evidence (the **evidence tracker**: map data or picture, chart picture, own note, own projection), local effects noted, slide text made. ⚠ lines are gentle hints when the plan does not fit together (low above high, snow with a warm high, rain with a clear sky, all three days the same).
+- **📑 Make my slides** writes the text for eight slides (title, place and systems, Day 1 to 3, local effects, what could be wrong, sources) from the plan and notes, to copy into Google Slides or PowerPoint.
+- **📷 Save map picture** (on the map) saves a PNG of the weather layers, borders and labels with a caption. The base-map tiles come from another site that blocks copying them, so the picture has a plain background.
+- **📖 Words** is a word bank of weather terms with a definition and an English "Say:" sentence; the English word stays visible next to the translation.
+- **Local tab summary** shows which of mountains, coast and ocean current apply at the student's place, and whether a note is saved for each.

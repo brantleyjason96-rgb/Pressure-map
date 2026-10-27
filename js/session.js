@@ -2,12 +2,12 @@
 // The place, notes and drawn fronts already save themselves in the browser (see util.js store). This adds a portable backup.
 import { $, store, esc } from './util.js';
 import { map } from './mapview.js';
-import { currentTab, goTab, setCollapsed, isCollapsed, toast, openModal, closeModal } from './shell.js';
+import { currentTab, goTab, setCollapsed, isCollapsed, setWide, isWide, toast, openModal, closeModal } from './shell.js';
 import { noteCount, getNotes } from './notes.js';
 import { P } from './place.js';
 import { planDone } from './planner.js';
 
-const KEYS = ['place', 'notes', 'plan', 'drawn', 'fspeed', 'proj', 'units'];       // what a work file carries
+const KEYS = ['place', 'notes', 'plan', 'evid', 'drawn', 'fspeed', 'proj', 'units'];       // what a work file carries
 const checks = () => [...document.querySelectorAll('#tab-explore input[type=checkbox]')];
 
 // ---- remember the map view and settings
@@ -15,7 +15,7 @@ let saveT, ready = false;
 function writeUI() {
   if (!ready) return;                                   // don't overwrite the saved view with defaults before it has been restored
   const c = map.getCenter(), tab = currentTab();
-  store.set('ui', { tab: tab === 'teacher' ? 'explore' : tab, collapsed: isCollapsed(), shade: $('shade').value, base: $('base').value,
+  store.set('ui', { tab: tab === 'teacher' ? 'explore' : tab, collapsed: isCollapsed(), wide: isWide(), shade: $('shade').value, base: $('base').value,
     checks: Object.fromEntries(checks().map(x => [x.id, x.checked])), view: { lat: c.lat, lon: c.lng, z: map.getZoom() } });
 }
 export function saveUI() { clearTimeout(saveT); saveT = setTimeout(writeUI, 300); }
@@ -26,6 +26,7 @@ export function restoreUI() {
   if (u.base) { $('base').value = u.base; $('base').dispatchEvent(new Event('change')); }
   if (u.view && isFinite(u.view.lat)) map.setView([u.view.lat, u.view.lon], u.view.z, { animate: false });
   if (u.tab) goTab(u.tab, { expand: false });
+  if (u.wide) setWide(true);
   setCollapsed(!!u.collapsed); $('shade').dispatchEvent(new Event('change')); ready = true;
 }
 
@@ -63,7 +64,7 @@ async function open(file) {
 }
 function fresh() {
   if (!confirm('Start a NEW project? This erases the place, notes and fronts on this computer.\n\nSave a file first if you want to keep them.')) return;
-  for (const k of ['place', 'notes', 'plan', 'drawn', 'fspeed', 'proj', 'backup', 'ui']) store.del(k); location.reload();
+  for (const k of ['place', 'notes', 'plan', 'evid', 'drawn', 'fspeed', 'proj', 'backup', 'ui']) store.del(k); location.reload();
 }
 
 export function initSession() {

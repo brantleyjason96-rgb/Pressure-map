@@ -15,6 +15,11 @@ import { initSession, restoreUI } from './session.js';
 import { initLayers } from './layers.js';
 import { initPlanner } from './planner.js';
 import { initI18n } from './i18n.js';
+import { initLocalSum } from './localsum.js';
+import { initCheck } from './check.js';
+import { initSlides } from './slides.js';
+import { initMapPic } from './mappic.js';
+import { initWords } from './words.js';
 
 $('units').value = U.sys; $('units').onchange = e => setUnits(e.target.value);
 if ($('ver').textContent.includes('__BUILD__')) $('ver').textContent = 'local copy (not published)';
@@ -30,6 +35,7 @@ initShell();
     $('st').textContent = 'Model analysis through ' + new Date(Date.parse(D.cycle)).toUTCString().slice(5, 22) + ' UTC';
     if (D.sample) $('samplebanner').hidden = false;
     initQuiz(); initPlace(); initNotes(); initPlanner(); initTerrain(); initCoast(); initCurrents(); initTools(); initPredict();
+    initLocalSum(); initCheck(); initSlides(); initMapPic(); initWords();
     initSession();
     await loadCurrents();
     if (!D.sst) document.querySelectorAll('#shade option[value=sst], #shade option[value=sstA]').forEach(o => o.remove());   // this data file has no sea temperature

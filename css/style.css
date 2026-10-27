@@ -221,3 +221,24 @@ table.guide td,table.guide th{vertical-align:top}
 #lang{max-width:9em}
 .rtl #side{border-left:0;border-right:1px solid var(--line)}
 .rtl .pgrid label,.rtl .kv{text-align:right}
+
+/* ---- check my work, local summary, word bank, map picture */
+ul.chk{list-style:none;margin:4px 0;padding:0}ul.chk li{display:flex;gap:8px;margin:5px 0}ul.chk li.sub{display:block;margin:0 0 0 22px}
+ul.chk li.ok span:first-child{color:var(--ok)}ul.chk li.todo span:first-child{color:var(--muted)}ul.chk li.warn{color:var(--warn)}
+.lchip{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--line);border-radius:8px;padding:8px 10px;margin:6px 0}
+.lchip.yes{border-left-color:#3a9a5c}.lchip.maybe{border-left-color:#c9a227}.lchip.no{border-left-color:#6b7685}
+.lchip .lh{display:flex;justify-content:space-between;gap:8px}.lchip .st{font-size:12px;color:var(--muted)}.lchip .ld{margin:4px 0;font-size:13px}
+.lchip .lb{display:flex;gap:10px;align-items:center;font-size:12px}.lchip .ok{color:var(--ok)}
+.wb{border-top:1px solid var(--line);padding:8px 0}.wbt{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font-size:16px}
+.wbt .wbtr{color:var(--muted);font-size:14px}html:lang(en) .wbtr{display:none}
+.wbd{margin:4px 0}.wbx{margin:2px 0;color:#9cc5ff;font-size:13px}
+#picbtn{position:absolute;top:10px;right:130px;z-index:600;background:#000d;color:#fff;border:1px solid #fff3;padding:6px 12px;border-radius:18px;font-weight:600}
+@media(max-width:800px){#picbtn{right:auto;left:56px}}
+
+/* ---- wide panel (3/4 of the screen) */
+#app.wide #side{width:75vw;max-width:75vw}
+#app.wide .pgrid,#app.wide .presets{grid-template-columns:repeat(4,1fr)}
+#app.wide .bar{flex-wrap:wrap}#app.wide #when{min-width:0;flex-basis:100%;text-align:left}
+#app.wide #picbtn{right:10px;top:52px}
+@media(max-width:800px){#widebtn{display:none}}
+#app.wide #maplegend{bottom:150px}
