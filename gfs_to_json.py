@@ -14,7 +14,7 @@ from frontfind import detect_fronts, theta_e
 
 PAST = list(range(-48, 1, 6))      # hours relative to the newest cycle; 0 = newest analysis
 FUTURE = list(range(6, 97, 6))     # teacher file only (96 h so Day 3 is covered whenever the cycle is a few hours old)
-ALL_VARS = "var_PRMSL=on&var_APCP=on&var_HGT=on&var_UGRD=on&var_VGRD=on&var_TMP=on&var_DPT=on&var_LAND=on&var_ICEC=on&var_RH=on"
+ALL_VARS = "var_PRMSL=on&var_APCP=on&var_HGT=on&var_UGRD=on&var_VGRD=on&var_TMP=on&var_DPT=on&var_LAND=on&var_ICEC=on&var_RH=on&var_PRES=on"
 LEVELS = "lev_mean_sea_level=on&lev_surface=on&lev_500_mb=on&lev_850_mb=on&lev_10_m_above_ground=on&lev_2_m_above_ground=on"
 KEYS = {("prmsl", 0): "p", ("gh", 500): "z5", ("u", 500): "u5", ("v", 500): "v5", ("2t", 2): "t2", ("2d", 2): "d2",
         ("10u", 10): "u10", ("10v", 10): "v10",
@@ -39,7 +39,8 @@ def fetch(t, fh, precip_only=False):
                 if b - a == 6: key = "pr"
             if not key and m.typeOfLevel == "surface":  # skin temperature, land mask and sea-ice fraction (for sea-surface temperature)
                 nm = m.name.lower()
-                if m.shortName in ("t", "skt") or nm in ("temperature", "skin temperature"): key = "tsfc"
+                if m.shortName == "sp" or nm == "surface pressure": key = "sp"          # tells us where 850 mb is underground
+                elif m.shortName in ("t", "skt") or nm in ("temperature", "skin temperature"): key = "tsfc"
                 elif m.shortName in ("lsm", "landn") or nm.startswith("land"): key = "land"
                 elif m.shortName == "ci" or nm.startswith("ice"): key = "ice"
             if not key or (precip_only and key != "pr"): continue
@@ -71,9 +72,11 @@ def front_settings():
     """Front-finder thresholds, so they can be tuned from the publish workflow without editing code: FRONT_GRAD_MIN (K per km)
     and FRONT_MIN_KM. Empty or missing means the defaults in frontfind.py."""
     cfg = {}
-    for env, key in (("FRONT_GRAD_MIN", "grad_min"), ("FRONT_MIN_KM", "min_km")):
+    for env, key in (("FRONT_GRAD_MIN", "grad_min"), ("FRONT_MIN_KM", "min_km"), ("FRONT_LAT_LO", "lat_lo"), ("FRONT_STRONG_MIN", "strong_min"),
+                     ("FRONT_TERRAIN_HPA", "terrain_hpa"), ("FRONT_CURVATURE", "curvature")):
         try: cfg[key] = float(os.environ.get(env, "").strip())
         except ValueError: pass
+    if "curvature" in cfg: cfg["curvature"] = bool(cfg["curvature"])
     return cfg
 
 
@@ -84,7 +87,8 @@ def fronts_for(r):
     """Fronts found from the 850 mb fields of one frame (1-degree grid). [] if NOAA's file lacked those fields."""
     if not all(k in r for k in ("t850", "r850", "u850", "v850")): return []
     th = theta_e(r["t850"], r["r850"], 850.0)
-    return detect_fronts(np.where(np.isfinite(th), th, np.nanmean(th)), r["u850"], r["v850"], FRONT_CFG)
+    sp = r["sp"] / 100 if "sp" in r else None                         # hPa; None if NOAA's file lacked it (then no ground mask)
+    return detect_fronts(np.where(np.isfinite(th), th, np.nanmean(th)), r["u850"], r["v850"], FRONT_CFG, surface_hpa=sp)
 
 
 def fields_for(r, pr):
@@ -115,50 +119,67 @@ def collect(frames):
     return out
 
 
-now = datetime.now(timezone.utc) - timedelta(hours=5)  # newest cycle takes ~4-5 h to publish in full
-for back in range(0, 30, 6):
-    t0 = (now - timedelta(hours=back)).replace(minute=0, second=0, microsecond=0)
-    t0 = t0.replace(hour=t0.hour // 6 * 6)
-    try:
-        # past frame at hour h = analysis of the cycle at t0+h; its 6-h rain = f006 of the cycle 6 h earlier (valid at t0+h)
-        past, past_fr = [], []
-        for h in PAST:
-            tv = t0 + timedelta(hours=h)
-            r = fetch(tv, 0)
-            if h == 0: raw0 = r
-            rain = fetch(tv - timedelta(hours=6), 6, precip_only=True).get("pr")
-            past.append(fields_for(r, rain)); past_fr.append(fronts_for(r))
-        break
-    except urllib.error.URLError:
-        continue
-else:
-    raise SystemExit("no complete GFS cycle available")
+def newest_cycle(fetch_fn=None):
+    """The newest 6-hourly GFS cycle whose analysis file can be fetched. Returns (cycle time, its raw fields)."""
+    fetch_fn = fetch_fn or fetch
+    now = datetime.now(timezone.utc) - timedelta(hours=5)  # newest cycle takes ~4-5 h to publish in full
+    for back in range(0, 30, 6):
+        t0 = (now - timedelta(hours=back)).replace(minute=0, second=0, microsecond=0)
+        t0 = t0.replace(hour=t0.hour // 6 * 6)
+        try: return t0, fetch_fn(t0, 0)
+        except urllib.error.URLError: continue
+    raise SystemExit('no GFS cycle available')
 
-assert max(PAST) == 0 and t0 <= datetime.now(timezone.utc), "public file must never contain forecast frames"
-os.makedirs("data", exist_ok=True)
-grid = {"lat0": -90, "lon0": -180, "d": 2}
-sst = make_sst(raw0)
-print("sea-surface temperature:", "ok" if sst else "NOT available (layers will be hidden)")
-json.dump({"cycle": t0.isoformat(), "hours": PAST, **grid, "sst": sst, "fr": past_fr, "f": collect(past)},
-          open("data/pressure.json", "w"), separators=(",", ":"))
-print("front settings:", FRONT_CFG or "defaults"); print("wrote data/pressure.json for cycle", t0, "past frames only:", PAST, "| fronts per frame:", [len(x) for x in past_fr])
 
-pw = os.environ.get("TEACHER_PASSWORD")
-if not pw:
-    print("TEACHER_PASSWORD not set: no teacher forecast file written")
-else:
-    from cryptography.hazmat.primitives import hashes
-    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-    fut, fut_fr = [], []
-    for h in FUTURE:
-        r = fetch(t0, h)
-        fut.append(fields_for(r, r.get("pr"))); fut_fr.append(fronts_for(r))
-    plain = gzip.compress(json.dumps({"cycle": t0.isoformat(), "hours": FUTURE, **grid, "fr": fut_fr, "f": collect(fut)},
-                                     separators=(",", ":")).encode())
-    salt, iv, iters = os.urandom(16), os.urandom(12), 250000
-    key = PBKDF2HMAC(hashes.SHA256(), 32, salt, iters).derive(pw.encode())
-    b64 = lambda b: base64.b64encode(b).decode()
-    json.dump({"v": 1, "iters": iters, "salt": b64(salt), "iv": b64(iv), "ct": b64(AESGCM(key).encrypt(iv, plain, None))},
-              open("data/teacher.enc", "w"))
-    print("wrote data/teacher.enc (encrypted forecast)")
+def main():
+    now = datetime.now(timezone.utc) - timedelta(hours=5)  # newest cycle takes ~4-5 h to publish in full
+    for back in range(0, 30, 6):
+        t0 = (now - timedelta(hours=back)).replace(minute=0, second=0, microsecond=0)
+        t0 = t0.replace(hour=t0.hour // 6 * 6)
+        try:
+            # past frame at hour h = analysis of the cycle at t0+h; its 6-h rain = f006 of the cycle 6 h earlier (valid at t0+h)
+            past, past_fr = [], []
+            for h in PAST:
+                tv = t0 + timedelta(hours=h)
+                r = fetch(tv, 0)
+                if h == 0: raw0 = r
+                rain = fetch(tv - timedelta(hours=6), 6, precip_only=True).get("pr")
+                past.append(fields_for(r, rain)); past_fr.append(fronts_for(r))
+            break
+        except urllib.error.URLError:
+            continue
+    else:
+        raise SystemExit("no complete GFS cycle available")
+
+    assert max(PAST) == 0 and t0 <= datetime.now(timezone.utc), "public file must never contain forecast frames"
+    os.makedirs("data", exist_ok=True)
+    grid = {"lat0": -90, "lon0": -180, "d": 2}
+    sst = make_sst(raw0)
+    print("sea-surface temperature:", "ok" if sst else "NOT available (layers will be hidden)")
+    json.dump({"cycle": t0.isoformat(), "hours": PAST, **grid, "sst": sst, "fr": past_fr, "f": collect(past)},
+              open("data/pressure.json", "w"), separators=(",", ":"))
+    print("front settings:", FRONT_CFG or "defaults"); print("wrote data/pressure.json for cycle", t0, "past frames only:", PAST, "| fronts per frame:", [len(x) for x in past_fr])
+
+    pw = os.environ.get("TEACHER_PASSWORD")
+    if not pw:
+        print("TEACHER_PASSWORD not set: no teacher forecast file written")
+    else:
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+        from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+        fut, fut_fr = [], []
+        for h in FUTURE:
+            r = fetch(t0, h)
+            fut.append(fields_for(r, r.get("pr"))); fut_fr.append(fronts_for(r))
+        plain = gzip.compress(json.dumps({"cycle": t0.isoformat(), "hours": FUTURE, **grid, "fr": fut_fr, "f": collect(fut)},
+                                         separators=(",", ":")).encode())
+        salt, iv, iters = os.urandom(16), os.urandom(12), 250000
+        key = PBKDF2HMAC(hashes.SHA256(), 32, salt, iters).derive(pw.encode())
+        b64 = lambda b: base64.b64encode(b).decode()
+        json.dump({"v": 1, "iters": iters, "salt": b64(salt), "iv": b64(iv), "ct": b64(AESGCM(key).encrypt(iv, plain, None))},
+                  open("data/teacher.enc", "w"))
+        print("wrote data/teacher.enc (encrypted forecast)")
+
+
+if __name__ == "__main__":
+    main()
