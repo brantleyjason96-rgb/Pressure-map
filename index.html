@@ -130,26 +130,27 @@
 
     <section id="tab-place" class="tab" role="tabpanel" hidden>
       <h3>Choose your place</h3>
+      <p class="small muted">Do <b>one</b> of these: search, pick on the map, or choose from the list.</p>
       <p class="lead">Pick any place on Earth. You will study its weather and make a 3-day forecast for it.</p>
       <div class="search"><input id="pq" placeholder="Search a city or town…" autocomplete="off" aria-label="Search for a city or town"><button id="pgo">Search</button></div>
       <div id="pres" class="pres"></div>
       <button id="ppick" class="wide">📍 Pick on the map</button>
       <details id="pstartd" open><summary>Or choose from a list of good places to study</summary><div id="pstart" class="starters"></div></details>
-      <label class="block">Place name <input id="pname" placeholder="(choose a place first)"></label>
+      <label class="block">Place name <small class="muted">(you can rename it)</small> <input id="pname" placeholder="(choose a place first)"></label>
       <div id="pcard"></div>
       <div class="pager"><button data-go="explore" class="ghost">◀ Explore</button><button data-go="local" class="primary">Next: local effects ▶</button></div>
     </section>
 
     <section id="tab-local" class="tab" role="tabpanel" hidden>
       <h3>Local effects at my place</h3>
-      <p class="lead">The big map shows large weather patterns. Mountains, coasts and ocean currents add local effects the model can’t see. Decide how they change <i>your</i> forecast.</p>
+      <p class="lead">The big map shows large weather patterns. Mountains, coasts and ocean currents add local effects the model can’t see. Decide how they change <i>your</i> forecast. Open one topic at a time.</p>
       <p id="lplace" class="small"></p>
       <div id="lempty" class="empty" hidden>Choose your place first.<br><button data-go="place" class="primary">Choose my place ▶</button></div>
-      <details class="topic" open><summary>⛰️ Mountains: windward and leeward</summary>
+      <details class="topic" name="ltopic" open><summary>⛰️ Mountains: windward or leeward?</summary>
         <div id="mbody" hidden></div></details>
-      <details class="topic" open><summary>🌊 Coast: land and sea breeze</summary>
+      <details class="topic" name="ltopic"><summary>🌊 Coast: will there be a sea breeze?</summary>
         <div id="cbody" hidden></div></details>
-      <details class="topic" open><summary>🌀 Ocean currents</summary>
+      <details class="topic" name="ltopic"><summary>🌀 Ocean currents: warm or cold water nearby?</summary>
         <div id="curbody" hidden></div></details>
       <div class="pager"><button data-go="place" class="ghost">◀ My place</button><button data-go="predict" class="primary">Next: play it forward ▶</button></div>
     </section>
@@ -159,7 +160,7 @@
       <p class="lead">Use what you learned to guess how the weather systems will move over the next 3 days, then <b>play your guess</b> on the map.</p>
       <div class="disclaimer">🔮 This is <b>your projection</b>, not a forecast. It only slides the Highs, Lows and fronts the way <i>you</i> set them. It cannot tell you the temperature, wind or rain. You still have to work those out.</div>
       <p id="prplace" class="small muted"></p>
-      <h4>1 · Choose what to move</h4>
+      <h4>1 · Choose what to move <small>(closest to your place first)</small></h4>
       <p class="small muted">Pick one, or click a High, Low or front on the map and press <b>🔮 Add</b>.</p>
       <div id="pradds" class="starters"></div><p id="pradd" class="warn small"></p>
       <h4>2 · Set how each one moves</h4>
@@ -178,7 +179,7 @@
     <section id="tab-notes" class="tab" role="tabpanel" hidden>
       <h3>My notes</h3>
       <p class="lead">Collect your evidence here, then build your presentation. Use the <b>📌 Add to notes</b> buttons on the map and the other tabs to save what you find.</p>
-      <label class="block">My name <input id="nname" placeholder="First and last name" autocomplete="name"></label>
+      <label class="block">My name <small class="muted">(printed on your notes)</small> <input id="nname" placeholder="First and last name" autocomplete="name"></label>
       <p id="nplace" class="small muted"></p>
       <div id="ncover" class="cover" aria-label="Notes per topic"></div>
       <div id="nbackup" class="backup" hidden>You have changes that are not in a backup file yet. <button id="nbackupbtn">💾 Save a copy</button></div>
@@ -195,7 +196,7 @@
         <button id="nprint" class="primary">🖨 Print / Save as PDF</button>
         <button id="ncopy">Copy all notes</button>
         <button id="ndl">Download notes</button>
-        <button id="nclear" class="ghost">Delete all</button>
+        <button id="nclear" class="ghost">Delete all my notes</button>
       </div>
       <p class="muted small">Tip for slides: on the My Place tab, “Download these charts as a picture” gives you a clean image of your place’s past 48 hours. To capture the map, use your device’s screenshot tool.</p>
       <div class="pager"><button data-go="predict" class="ghost">◀ Play it forward</button><span></span></div>

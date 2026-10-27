@@ -125,8 +125,8 @@ function renderItems() {
 }
 function renderAdd() {
   const c = P.place || map.getCenter(), c2 = { lat: c.lat, lon: c.lon ?? c.lng };
-  const sys = frameInfo(newest()).ex.map(e => ({ ...e, d: distKm(c2.lat, c2.lon, e.lat, e.lon) })).sort((a, b) => a.d - b.d).slice(0, 4);
-  const fr = nearestFronts(c2, 4);
+  const sys = frameInfo(newest()).ex.map(e => ({ ...e, d: distKm(c2.lat, c2.lon, e.lat, e.lon) })).sort((a, b) => a.d - b.d).slice(0, 3);
+  const fr = nearestFronts(c2, 2);
   $('pradds').innerHTML = (sys.length || fr.length ? '' : '<p class="muted small">No systems found.</p>') + sys.map((s, i) => `<button data-sys="${i}"><b>${s.t === 'H' ? '🔵 High' : '🔴 Low'}</b>, ${Math.round(s.v)} hPa <small>${esc(fmtD(s.d))} from ${P.place ? 'your place' : 'the map center'}</small></button>`).join('')
     + fr.map((f, i) => `<button data-fr="${i}"><b>〰️ ${esc(NAMES[f.type])}</b> <small>${f.src === 'mine' ? 'mine' : f.src === 'model' ? 'computer-found' : 'NOAA'} · ${esc(fmtD(f.km))} away</small></button>`).join('');
   $('pradds')._sys = sys; $('pradds')._fr = fr;

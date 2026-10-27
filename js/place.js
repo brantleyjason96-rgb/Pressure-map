@@ -103,6 +103,7 @@ function sysLine(type, pl) {
   const mot = m ? `Moving toward the ${compass(m.dir)} at ${fmtS(m.kmh / 3.6)} (${m.dp > 0 ? '+' : ''}${m.dp.toFixed(1)} hPa in ${m.hrs} h)${s.d < 4000 ? ' — ' + relDir(bearing(s.e.lat, s.e.lon, pl.lat, pl.lon), m.dir) : ' — too far away to matter soon'}.` : 'New in the last 48 h; motion not measurable yet.';
   return `<li><b>Nearest ${name}:</b> ${Math.round(s.e.v)} hPa, <b>${fmtD(s.d)}</b> to the ${compass(s.brg)} of you.<br>${mot}<br>${pinBtn('hl', `${head} (${when()}). ${mot}`)}</li>`;
 }
+const OPEN = { sys: false, hist: false };   // which sections the student has opened; the card is redrawn often, so remember them
 export function renderCard() {
   const el = $('pcard'), pl = P.place;
   $('pname').value = pl ? pl.name : ''; $('pname').disabled = !pl;
@@ -122,10 +123,14 @@ export function renderCard() {
       <span>Pressure</span><b>${esc(fmtP(p))}</b><span>Pressure change</span><b>${dp24 > 0 ? '+' : ''}${dp24.toFixed(1)} hPa / 24 h → ${tend}</b>
       <span>Wind</span><b>from the ${compass(ser.dir[n])} at ${fmtS(ser.spd[n])}</b><span>Rain, last 6 h</span><b>${fmtRain(ser.pr[n])}</b></div>
     ${pinBtn('general', `${pl.name}, ${when()}: temperature ${fmtT(t)}, dewpoint ${fmtT(ser.d[n])}, pressure ${fmtP(p)} (${tend}, ${dp24 > 0 ? '+' : ''}${dp24.toFixed(1)} hPa in 24 h), wind from the ${compass(ser.dir[n])} at ${fmtS(ser.spd[n])}, rain in the last 6 h ${fmtRain(ser.pr[n])}.`)}
-    <h4>Highs and lows near you</h4><ul class="sys">${sysLine('H', pl)}${sysLine('L', pl)}</ul>
-    <div id="pfronts"></div>
-    <h4>The past 48 hours here</h4>${chartsHTML(ser, S.cur < S.nPast ? S.cur : n)}
-    <button id="pchartdl" class="wide">⬇ Download these charts as a picture (for slides)</button>
+    <details class="grp" data-k="sys" ${OPEN.sys ? 'open' : ''}><summary>🌀 Highs, lows and fronts near you</summary>
+      <p class="small muted">These are the weather systems closest to your place. Press 📌 to save one to your notes.</p>
+      <h4>Highs and lows</h4><ul class="sys">${sysLine('H', pl)}${sysLine('L', pl)}</ul>
+      <div id="pfronts"></div></details>
+    <details class="grp" data-k="hist" ${OPEN.hist ? 'open' : ''}><summary>📈 The past 48 hours here (charts)</summary>
+      <p class="small muted">How pressure, temperature, dewpoint and wind changed at your place. A falling pressure often means a Low or a front is coming.</p>
+      ${chartsHTML(ser, S.cur < S.nPast ? S.cur : n)}
+      <button id="pchartdl" class="wide">⬇ Download these charts as a picture (for slides)</button></details>
     <p class="muted small">Model values are averages over a square about 200 km (125 mi) wide. Hills, lakes and the coast are <i>not</i> in them — that is part of what you add with your own reasoning.</p>`;
   document.dispatchEvent(new Event('cardrender'));
 }
@@ -155,6 +160,7 @@ function chartsPNG() {
 }
 
 export function initPlace() {
+  $('pcard').addEventListener('toggle', e => { const k = e.target.dataset && e.target.dataset.k; if (k) OPEN[k] = e.target.open; }, true);
   $('pcard').addEventListener('click', e => {
     const b = e.target.closest('.pinbtn');
     if (b) { document.dispatchEvent(new CustomEvent('pinnote', { detail: { topic: b.dataset.topic, text: b.dataset.text } })); b.textContent = '✓ Added to notes'; b.disabled = true; return; }

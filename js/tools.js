@@ -76,7 +76,7 @@ function fillFronts() {
     const txt = `${who(f)} ${NAMES[f.type]}: ${fmtD(f.km)} to the ${compass(f.toward)} of ${pl.name} (${when})`;
     return `<li><b>${esc(who(f))} ${esc(NAMES[f.type])}</b>: ${esc(fmtD(f.km))} to the ${compass(f.toward)}. <button class="pinbtn" data-topic="front" data-text="${esc(txt + '.')}">📌 Add to notes</button></li>`;
   }).join('') + `</ul>
-    <div class="calc">If the nearest front (the ${esc(who(near).toLowerCase())} ${esc(NAMES[near.type])}, ${esc(fmtD(near.km))} away) moved straight toward you at
+    <div class="calc">If the nearest front (the ${esc(who(near) === 'NOAA' ? 'NOAA' : who(near).toLowerCase())} ${esc(NAMES[near.type])}, ${esc(fmtD(near.km))} away) moved straight toward you at
       <input type="number" id="fspd" min="1" step="1" value="${speed}" aria-label="Front speed in ${U.sys === 'us' ? 'miles per hour' : 'kilometers per hour'}"> ${U.sys === 'us' ? 'mph' : 'km/h'}, it would arrive in about <b id="fhrs"></b>.
       <small class="muted">distance ÷ speed. Estimate the speed yourself from the 48-hour loop.</small></div>`;
   const calc = () => { const h = near.km / Math.max(1, kmh()); $('fhrs').textContent = h < 48 ? `${h.toFixed(1)} hours` : `${(h / 24).toFixed(1)} days`; };
