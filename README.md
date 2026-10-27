@@ -90,7 +90,7 @@ system is from their place at +24, +48 and +72 hours and when a front would reac
 - **Version.** The footer of the panel shows which version is live (the commit and publish time are stamped in by the workflow).
 
 ## Student notes
-Students present their forecast themselves, so there is no forecast form. The **My Notes** tab collects evidence by topic
+Students present their forecast themselves. The **My Notes** tab has a **3-day forecast plan** (one card per day: high and low, sky, rain or snow and chance, wind, pressure trend, a reason, and the biggest uncertainty) with a rules-of-thumb guide for getting the numbers. It holds only what the student types, never the model forecast, and it prints and saves with their work. Below it, the tab collects evidence by topic
 (highs and lows, fronts, breeze, windward/leeward, currents). The 📌 buttons on the map and the place card pin what the
 map shows into the notes. Notes can be printed, saved as PDF, copied, or downloaded as text, and the place charts can be
 downloaded as a picture for slides. Everything stays in the student's own browser.
@@ -98,3 +98,10 @@ downloaded as a picture for slides. Everything stays in the student's own browse
 ## Develop offline
 `python3 dev/make_sample_data.py` writes **synthetic** data (teacher passphrase `sample`), then `python3 -m http.server`.
 Needs `numpy` and `cryptography`. Sample data shows an orange "SAMPLE DATA" banner and is not real weather.
+
+## Languages
+The **🌐 language menu** in the panel header switches the whole site between English, Español, Français, Kreyòl ayisyen, Português and العربية (Arabic switches the panel to right-to-left). The choice is remembered in the browser.
+- Translations live in `lang/<code>.json`, one object per language mapping each English string to its translation. `js/i18n.js` swaps the text on the page and in anything the app draws later. Sentences with numbers match as templates (`{#}` stands for a number).
+- Anything without a translation stays in English. Known gaps: the step-by-step explanations on the **Local** tab (mountain, sea breeze and ocean-current text built from the place's data), the Teacher view, and the map's own labels.
+- The translations were machine-written and have not been checked by a fluent speaker. Have one review them, especially the weather vocabulary, and fix any line directly in the JSON file.
+- To add or fix text: open the site with `?i18n=1`, which records untranslated strings in `missing` of the i18n module, then add them to each `lang/*.json`.

@@ -210,3 +210,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 .bar .cap{font-size:13px;white-space:nowrap}
 @media(max-width:800px){.bar .cap{display:none}}
 #frkey{font-size:13px}
+
+/* ---- 3-day plan */
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin:8px 0}
+.pgrid label{margin:0;font-size:12px;color:var(--muted)}
+.pgrid input,.pgrid select{margin-top:2px;color:var(--text)}
+table.guide td,table.guide th{vertical-align:top}
+
+/* ---- language switcher and right-to-left (Arabic) */
+#lang{max-width:9em}
+.rtl #side{border-left:0;border-right:1px solid var(--line)}
+.rtl .pgrid label,.rtl .kv{text-align:right}

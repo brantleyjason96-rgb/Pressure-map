@@ -6,7 +6,7 @@ export const range = (a, b, s) => { const o = []; for (let v = a; v <= b; v += s
 export const store = {
   get(k, d) { try { const v = localStorage.getItem('pm.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) {
-    try { localStorage.setItem('pm.' + k, JSON.stringify(v)); if (!['touched', 'backup', 'ui', 'seenHelp'].includes(k) && !k.startsWith('norm:')) localStorage.setItem('pm.touched', String(Date.now())); }
+    try { localStorage.setItem('pm.' + k, JSON.stringify(v)); if (!['touched', 'backup', 'ui', 'seenHelp', 'lang'].includes(k) && !k.startsWith('norm:')) localStorage.setItem('pm.touched', String(Date.now())); }
     catch { /* private window: just don't remember */ }
   },
   del(k) { try { localStorage.removeItem('pm.' + k); } catch { /* ignore */ } },

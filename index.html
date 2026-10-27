@@ -39,6 +39,7 @@
       <div class="toolbar">
         <button id="mywork" title="Save your work, or open saved work">💾 My work<i id="workdot" hidden></i></button>
         <button id="helpbtn" title="How this works">❓ Help</button>
+        <select id="lang" aria-label="Language" title="Language / Idioma / Langue"></select>
         <select id="units" aria-label="Units"><option value="us">°F · mph</option><option value="metric">°C · km/h</option></select>
         <button id="tbtn" class="ghost" title="Teacher view">Teacher</button>
       </div>
@@ -177,10 +178,12 @@
     </section>
 
     <section id="tab-notes" class="tab" role="tabpanel" hidden>
-      <h3>My notes</h3>
-      <p class="lead">Collect your evidence here, then build your presentation. Use the <b>📌 Add to notes</b> buttons on the map and the other tabs to save what you find.</p>
+      <h3>My forecast and notes</h3>
+      <p class="lead">First write your 3-day forecast, one card per day. Then collect your evidence. Your slides come from these two things.</p>
       <label class="block">My name <small class="muted">(printed on your notes)</small> <input id="nname" placeholder="First and last name" autocomplete="name"></label>
       <p id="nplace" class="small muted"></p>
+      <details class="grp" id="plan" open><summary>📅 My 3-day forecast plan</summary><div id="planbody"></div></details>
+      <h4>Evidence notes</h4>
       <div id="ncover" class="cover" aria-label="Notes per topic"></div>
       <div id="nbackup" class="backup" hidden>You have changes that are not in a backup file yet. <button id="nbackupbtn">💾 Save a copy</button></div>
       <div class="addnote">
@@ -220,7 +223,7 @@
     <li><b>My Place.</b> Choose a place. See its normal weather and what has been happening there.</li>
     <li><b>Local.</b> Check mountains, the coast and ocean currents. They change the weather in ways the big map can’t show.</li>
     <li><b>Predict.</b> Choose Highs, Lows and fronts, set how fast and which way <i>you</i> think they will move, and play your guess forward 3 days. It is your projection, not a forecast.</li>
-    <li><b>Notes.</b> Press <b>📌 Add to notes</b> whenever you find evidence. Use your notes to build your presentation.</li>
+    <li><b>Notes.</b> Write your 3-day forecast on the <b>Day 1, 2 and 3 cards</b>, then press <b>📌 Add to notes</b> whenever you find evidence. Build your slides from the cards and your notes.</li>
     <li><b>Save your work.</b> Press <b>💾 My work</b> to download a file. You can open it later, even on another computer.</li>
   </ol>
   <div class="actions"><button id="helpclose" class="primary">Got it, let’s start</button></div>

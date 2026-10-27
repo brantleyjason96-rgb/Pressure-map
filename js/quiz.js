@@ -4,7 +4,7 @@ import { S, frameInfo } from './data.js';
 import { applyPreset } from './layers.js';
 import { view, hooks, map, redraw, frontLines, frType, frLines } from './mapview.js';
 
-const CONCEPTS = [
+export const CONCEPTS = [
   { q: 'In the Northern Hemisphere, winds around a LOW blow…', o: ['clockwise and outward', 'counterclockwise and inward', 'straight toward the High', 'in no set pattern'], a: 1, why: 'Air flows toward low pressure and Earth’s rotation bends it right, giving a counterclockwise, inward spiral.' },
   { q: 'In the Southern Hemisphere, winds around a LOW blow…', o: ['clockwise and inward', 'counterclockwise and inward', 'clockwise and outward', 'counterclockwise and outward'], a: 0, why: 'South of the equator Earth’s rotation bends moving air to the left, so everything flips: clockwise and inward around a Low.' },
   { q: 'Isobars packed closely together mean…', o: ['light wind', 'strong wind', 'no clouds', 'a front is present'], a: 1, why: 'Tight isobars = a steep pressure gradient, which drives stronger wind.' },

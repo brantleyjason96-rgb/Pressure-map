@@ -3,6 +3,7 @@
 import { $, esc, store, fmtT, fmtElev } from './util.js';
 import { S, frameTime } from './data.js';
 import { P } from './place.js';
+import { planHTML, planText } from './planner.js';
 
 export const TOPICS = [
   { k: 'general', icon: '📝', name: 'General', ask: 'Anything else: your place, what you noticed, questions, ideas for your slides.', frames: [] },
@@ -53,6 +54,7 @@ const plain = () => {
   if (pl) lines.push(`Place: ${pl.name} (${pl.lat.toFixed(2)}, ${pl.lon.toFixed(2)}), elevation ${fmtElev(pl.elev)}`);
   if (pl && nm && nm !== 'loading' && nm !== 'error') lines.push(`Normal for this time of year: high ${fmtT(nm.hi)}, low ${fmtT(nm.lo)}`);
   lines.push(`Map data: model analysis through ${S.D ? new Date(Date.parse(S.D.cycle)).toUTCString() : ''}${S.D && S.D.sample ? ' (SAMPLE DATA)' : ''}`, '');
+  lines.push('== My 3-day forecast ==', ...planText(), '');
   TOPICS.forEach(t => { const items = N.items.filter(i => i.k === t.k); if (items.length) { lines.push(`== ${t.name} ==`); items.forEach(i => lines.push(`- ${i.text.replace(/\n+/g, ' ')}`)); lines.push(''); } });
   return lines.join('\n');
 };
@@ -61,7 +63,7 @@ function printNotes() {
   $('printReport').innerHTML = `<h1>My Weather Notes</h1><p><b>Name:</b> ${esc(N.student) || '________________'} &nbsp; <b>Place:</b> ${pl ? esc(pl.name) + ` (${pl.lat.toFixed(2)}, ${pl.lon.toFixed(2)}, ${esc(fmtElev(pl.elev))})` : '—'}</p>
     ${ok ? `<p><b>Normal for this time of year:</b> high ${fmtT(nm.hi)}, low ${fmtT(nm.lo)}</p>` : ''}
     <p class="small">Map data: model analysis through ${S.D ? new Date(Date.parse(S.D.cycle)).toUTCString().replace(':00:00 GMT', ' UTC') : ''}${S.D && S.D.sample ? ' (SAMPLE DATA)' : ''}</p>` +
-    TOPICS.map(t => { const items = N.items.filter(i => i.k === t.k); return items.length ? `<h2>${t.icon} ${esc(t.name)}</h2>` + items.map(i => `<div class="rc"><p>${i.pin ? '📌 ' : ''}${esc(i.text).replace(/\n/g, '<br>')}</p></div>`).join('') : ''; }).join('');
+    planHTML() + TOPICS.map(t => { const items = N.items.filter(i => i.k === t.k); return items.length ? `<h2>${t.icon} ${esc(t.name)}</h2>` + items.map(i => `<div class="rc"><p>${i.pin ? '📌 ' : ''}${esc(i.text).replace(/\n/g, '<br>')}</p></div>`).join('') : ''; }).join('');
   const done = () => { document.body.classList.remove('printing'); window.removeEventListener('afterprint', done); };
   window.addEventListener('afterprint', done); document.body.classList.add('printing'); setTimeout(() => window.print(), 50);
 }

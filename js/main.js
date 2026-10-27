@@ -13,10 +13,13 @@ import { initPredict } from './predict.js';
 import { initShell, openModal } from './shell.js';
 import { initSession, restoreUI } from './session.js';
 import { initLayers } from './layers.js';
+import { initPlanner } from './planner.js';
+import { initI18n } from './i18n.js';
 
 $('units').value = U.sys; $('units').onchange = e => setUnits(e.target.value);
 if ($('ver').textContent.includes('__BUILD__')) $('ver').textContent = 'local copy (not published)';
 
+initI18n();
 initMap();
 initTeacher();
 initShell();
@@ -26,7 +29,7 @@ initShell();
     $('slider').max = S.hours.length - 1;
     $('st').textContent = 'Model analysis through ' + new Date(Date.parse(D.cycle)).toUTCString().slice(5, 22) + ' UTC';
     if (D.sample) $('samplebanner').hidden = false;
-    initQuiz(); initPlace(); initNotes(); initTerrain(); initCoast(); initCurrents(); initTools(); initPredict();
+    initQuiz(); initPlace(); initNotes(); initPlanner(); initTerrain(); initCoast(); initCurrents(); initTools(); initPredict();
     initSession();
     await loadCurrents();
     if (!D.sst) document.querySelectorAll('#shade option[value=sst], #shade option[value=sstA]').forEach(o => o.remove());   // this data file has no sea temperature

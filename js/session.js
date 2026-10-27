@@ -5,8 +5,9 @@ import { map } from './mapview.js';
 import { currentTab, goTab, setCollapsed, isCollapsed, toast, openModal, closeModal } from './shell.js';
 import { noteCount, getNotes } from './notes.js';
 import { P } from './place.js';
+import { planDone } from './planner.js';
 
-const KEYS = ['place', 'notes', 'drawn', 'fspeed', 'proj', 'units'];       // what a work file carries
+const KEYS = ['place', 'notes', 'plan', 'drawn', 'fspeed', 'proj', 'units'];       // what a work file carries
 const checks = () => [...document.querySelectorAll('#tab-explore input[type=checkbox]')];
 
 // ---- remember the map view and settings
@@ -36,7 +37,7 @@ export function exportWork() {
   o.ui = store.get('ui', null); return o;
 }
 const touched = () => +localStorage.getItem('pm.touched') || 0, backedUp = () => +localStorage.getItem('pm.backup') || 0;
-const hasWork = () => !!(P.place || noteCount() || (store.get('drawn', []).length) || ((store.get('proj', {}) || {}).items || []).length);
+const hasWork = () => !!(P.place || noteCount() || planDone() || (store.get('drawn', []).length) || ((store.get('proj', {}) || {}).items || []).length);
 export const needsBackup = () => hasWork() && touched() > backedUp();
 const when = t => t ? new Date(t).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : null;
 
@@ -62,7 +63,7 @@ async function open(file) {
 }
 function fresh() {
   if (!confirm('Start a NEW project? This erases the place, notes and fronts on this computer.\n\nSave a file first if you want to keep them.')) return;
-  for (const k of ['place', 'notes', 'drawn', 'fspeed', 'proj', 'backup', 'ui']) store.del(k); location.reload();
+  for (const k of ['place', 'notes', 'plan', 'drawn', 'fspeed', 'proj', 'backup', 'ui']) store.del(k); location.reload();
 }
 
 export function initSession() {
