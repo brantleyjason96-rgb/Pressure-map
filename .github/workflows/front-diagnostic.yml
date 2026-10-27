@@ -1,0 +1,19 @@
+name: front-diagnostic
+# Read-only check of the computer-found fronts against NOAA's hand-drawn fronts, on real data. It prints a report to the log.
+# It publishes nothing, uses no secrets, and runs on the development branch whenever the front code changes (or from the Run workflow button).
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/**"]
+    paths: ["dev/front_diagnostic.py", "frontfind.py", "gfs_to_json.py", ".github/workflows/front-diagnostic.yml"]
+permissions: {contents: read}
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install pygrib numpy
+      - run: python dev/front_diagnostic.py

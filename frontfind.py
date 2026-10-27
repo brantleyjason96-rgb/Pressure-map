@@ -11,9 +11,12 @@ These are rough, computer-found fronts, not forecasters' analyses. Pure numpy; n
 import numpy as np
 
 K = np.pi / 180
-DEFAULT = dict(grad_min=0.022,      # K per km: weakest contrast that can be a front (about 2 K per 100 km after smoothing)
-               min_km=900,          # shortest line kept
-               lat_lo=15, lat_hi=82,
+DEFAULT = dict(grad_min=0.035,      # K per km: weakest contrast that can be a front (3.5 K per 100 km after smoothing)
+               min_km=1200,         # shortest line kept
+               lat_lo=20, lat_hi=82,
+               curvature=True,      # keep only the sharpest ridge of contrast (a maximum, not a minimum) - Hewson's second condition
+               strong_min=0.0,      # mean contrast along the whole line must be at least this (K per km); 0 = off
+               terrain_hpa=880,     # 850 mb is underground where surface pressure is below this: ignore those places
                wind_min=2.0)        # m/s across the front below which it is called stationary
 
 
@@ -97,9 +100,10 @@ def _thin(pts, k=3):
     return pts[::k] + ([pts[-1]] if (len(pts) - 1) % k else [])
 
 
-def detect_fronts(theta, u, v, cfg=None):
+def detect_fronts(theta, u, v, cfg=None, surface_hpa=None):
     """theta: equivalent potential temperature (K) on a 1-degree global grid, shape (181, 360), rows S->N, columns 0..359 E.
-    u, v: wind (m/s) at the same level and grid. Returns [{"t": "Cold Front", "p": [[lat, lon], ...]}, ...]."""
+    u, v: wind (m/s) at the same level and grid. surface_hpa: surface pressure (hPa) on the same grid, used to ignore places where
+    the 850 mb level is below ground (the model invents contrast there). Returns [{"t": "Cold Front", "g": 0.052, "p": [[lat, lon], ...]}, ...]."""
     c = {**DEFAULT, **(cfg or {})}
     lat = np.arange(-90, 91, dtype=float)
     th = _smooth(theta, 1)
@@ -107,8 +111,13 @@ def detect_fronts(theta, u, v, cfg=None):
     mag_s = _smooth(mag, 1)
     nx, ny = gx / np.maximum(mag, 1e-9), gy / np.maximum(mag, 1e-9)                 # unit vector toward warmer / moister air
     mx, my = _grad(mag_s, lat)
-    tfp = -(mx * nx + my * ny)
+    sn = mx * nx + my * ny                                                           # how the contrast changes across the front
+    tfp = -sn
     ok = (mag_s > c["grad_min"]) & (np.abs(lat)[:, None] >= c["lat_lo"]) & (np.abs(lat)[:, None] <= c["lat_hi"])
+    if c["curvature"]:
+        sx, sy = _grad(sn, lat); ok &= (sx * nx + sy * ny) < 0                       # a maximum of contrast, not a minimum
+    if surface_hpa is not None and c["terrain_hpa"]:
+        ok &= _smooth((surface_hpa < c["terrain_hpa"]).astype(float), 2) < 0.02     # also a margin of 2 grid cells around high ground
     pos, segs = _zero_segments(tfp, ok)
     out = []
     for ch in _chains(pos, segs):
@@ -117,6 +126,8 @@ def detect_fronts(theta, u, v, cfg=None):
         km = sum(np.hypot((b[0] - a[0]) * 111, ((b[1] - a[1] + 180) % 360 - 180) * 111 * np.cos(np.radians((a[0] + b[0]) / 2))) for a, b in zip(ch[:-1], ch[1:]))
         if km < c["min_km"]: continue
         ch = _chaikin(ch, 2)
+        strength = float(np.mean([mag_s[int(np.clip(round(la + 90), 0, 180)), int(round(lo)) % 360] for la, lo in ch]))
+        if strength < c["strong_min"]: continue
         # sample the gradient direction and the wind along the line
         def at(f, la, lo):
             y, x = la + 90, lo % 360; i, j = int(np.clip(np.floor(y), 0, 179)), int(np.floor(x)) % 360; fy, fx = y - i, x - np.floor(x)
@@ -137,5 +148,5 @@ def detect_fronts(theta, u, v, cfg=None):
             if part and abs(lo - part[-1][1]) > 180: parts.append(part); part = []
             part.append([round(float(la), 1), round(float(lo), 1)])
         parts.append(part)
-        out += [{"t": kind, "p": _thin(p)} for p in parts if len(p) >= 8]
+        out += [{"t": kind, "g": round(strength, 3), "p": _thin(p)} for p in parts if len(p) >= 8]
     return out

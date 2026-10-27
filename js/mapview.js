@@ -75,6 +75,7 @@ const Cv = L.Layer.extend({
     if (on('hl')) this.hl(g, info.ex);
     if (on('frd')) { info.frf ||= (S.D.fr[S.cur] || []).map(f => ({ geometry: { type: 'LineString', coordinates: f.p.map(([la, lo]) => [lo, la]) }, properties: { feat: f.t } })); if (info.frf.length) this.drawFronts(g, { features: info.frf }, { alpha: .85, w: 2, sp: 30 }); }   // computer-detected, worldwide
     if (on('fr') && fronts && S.cur === S.nPast - 1) this.drawFronts(g, fronts.gj);   // NOAA hand-drawn, North America
+    if (on('fr') && S.teacher && S.cur >= S.nPast) { const c = forecastCharts[frameTime(S.cur).toISOString().slice(0, 10)]; if (c) this.drawFronts(g, c.gj); }   // teacher: forecasters' chart for that day
     for (const fn of Object.values(view.layers)) fn(g, m, this);
     if (view.section && view.localOn) this.section(g);   // the Local tab's wind line and coast marker only show while that tab is open
     if (view.coast && view.localOn) this.coast(g);
@@ -286,17 +287,21 @@ export function initMap() {
     getJ('https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json')]).then(a => { borders = a.flat(); layer.draw(); });
 }
 
-// ---- fronts: NOAA WPC charts, North America only. Only a chart dated today or earlier is used (never a Day 2/3 chart).
+// ---- fronts: NOAA WPC charts, North America only. Students only ever get a chart dated today or earlier (never a Day 2/3 chart).
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-export async function loadFronts() {
-  const today = new Date().toISOString().slice(0, 10), found = [];
+export async function fetchFrontCharts() { // every chart the service offers, each with the date it is valid for
+  const found = [];
   await Promise.all([2, 14, 26].map(id => fetch(`https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/natl_fcst_wx_chart/MapServer/${id}/query?where=1%3D1&outFields=feat,popupconte&f=geojson`)
     .then(r => r.json()).then(gj => {
       gj.features = gj.features.filter(f => f.geometry);
       const m = (gj.features[0]?.properties.popupconte || '').match(/(\w{3}) (\d+) (\d{4})/); if (!m) return;
-      const key = new Date(Date.UTC(+m[3], MON.indexOf(m[1]), +m[2])).toISOString().slice(0, 10);
-      if (key <= today) found.push({ key, gj, date: `${m[1]} ${m[2]}` });
+      found.push({ key: new Date(Date.UTC(+m[3], MON.indexOf(m[1]), +m[2])).toISOString().slice(0, 10), gj, date: `${m[1]} ${m[2]}` });
     }).catch(() => {})));
+  return found;
+}
+export const forecastCharts = {};   // teacher view only: forecasters' charts for coming days, by date (filled after the teacher unlocks)
+export async function loadFronts() {
+  const today = new Date().toISOString().slice(0, 10), found = (await fetchFrontCharts()).filter(c => c.key <= today);
   found.sort((a, b) => a.key < b.key ? 1 : -1); fronts = found[0] || null;
   $('frnote').textContent = frontsNote(); layer && layer.draw(); document.dispatchEvent(new Event('cardrender'));   // the place card lists nearby fronts
 }

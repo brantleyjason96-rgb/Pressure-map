@@ -3,6 +3,9 @@ on:
   push: {branches: [main]}
   schedule: [{cron: "30 */6 * * *"}]   # GFS runs every 6h; the script falls back to an older cycle if the newest isn't out yet
   workflow_dispatch:
+    inputs:                      # optional: tune the computer-found fronts from the Run workflow button (leave blank for the defaults)
+      front_grad_min: {description: "Weakest contrast that counts as a front, in K per km (default 0.022; lower = more fronts)", required: false, default: ""}
+      front_min_km: {description: "Shortest front to keep, in km (default 900; lower = more, shorter fronts)", required: false, default: ""}
 permissions: {contents: read, pages: write, id-token: write}
 concurrency: {group: pages, cancel-in-progress: true}
 jobs:
@@ -17,6 +20,8 @@ jobs:
       - run: mkdir -p data && python gfs_to_json.py   # data stays out of git history; it only lives in the deployed site
         env:
           TEACHER_PASSWORD: ${{ secrets.TEACHER_PASSWORD }}   # optional: encrypts the forecast for the Teacher view
+          FRONT_GRAD_MIN: ${{ inputs.front_grad_min }}
+          FRONT_MIN_KM: ${{ inputs.front_min_km }}
       - run: mkdir site && cp -r index.html css js data site/
       - run: sed -i "s|__BUILD__|${GITHUB_SHA::7} · $(date -u '+%b %-d, %-I:%M %p UTC')|" site/index.html   # shows which version is live
       - uses: actions/configure-pages@v5
