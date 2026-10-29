@@ -35,11 +35,25 @@ async function geocode(q) {
   const r = await (await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=en&format=json`)).json();
   return (r.results || []).map(x => ({ name: [x.name, x.admin1, x.country].filter(Boolean).join(', '), lat: x.latitude, lon: x.longitude, elev: x.elevation }));
 }
+async function fetchElev(lat, lon) { // USGS (US, very accurate), then Open-Meteo (worldwide); separate from the history lookup
+  try {
+    const r = await (await fetch(`https://epqs.nationalmap.gov/v1/json?x=${lon}&y=${lat}&units=Meters&wkid=4326`)).json(), v = parseFloat(r.value);
+    if (isFinite(v) && v > -500) return v;
+  } catch {}
+  const r = await (await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`)).json();
+  return Array.isArray(r.elevation) ? r.elevation[0] : null;
+}
 async function fetchNormals(lat, lon) {
   const td = new Date(), key = `norm:${lat.toFixed(1)},${lon.toFixed(1)}:${td.getUTCMonth()}-${td.getUTCDate()}`, hit = store.get(key, null);
   if (hit) return hit;
-  const y = td.getUTCFullYear(), url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${y - 15}-01-01&end_date=${y - 1}-12-31&daily=temperature_2m_max,temperature_2m_min&timezone=auto`;
-  const r = await (await fetch(url)).json(), D = r.daily;
+  const y = td.getUTCFullYear(); let D, r = {};
+  try { // NASA POWER daily history (no key, generous limits)
+    const j = await (await fetch(`https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M_MAX,T2M_MIN&community=ag&longitude=${lon}&latitude=${lat}&start=${y - 15}0101&end=${y - 1}1231&format=json`)).json(), q = j.properties.parameter, t = Object.keys(q.T2M_MAX);
+    const ok = v => v > -900 ? v : null;
+    D = { time: t.map(k => `${k.slice(0, 4)}-${k.slice(4, 6)}-${k.slice(6)}`), temperature_2m_max: t.map(k => ok(q.T2M_MAX[k])), temperature_2m_min: t.map(k => ok(q.T2M_MIN[k])) };
+  } catch { // backup: Open-Meteo
+    r = await (await fetch(`https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${y - 15}-01-01&end_date=${y - 1}-12-31&daily=temperature_2m_max,temperature_2m_min&timezone=auto`)).json(); D = r.daily;
+  }
   if (!D) throw new Error('no data');
   const doy = (m, d) => Date.UTC(2001, m, d) / 864e5, today = doy(td.getUTCMonth(), td.getUTCDate());
   let hs = 0, hn = 0, ls = 0, ln = 0;
@@ -60,6 +74,7 @@ export async function setPlace(pl, fly = true) {
   store.set('place', P.place); setPin(P.place); if (fly) flyTo(P.place.lat, P.place.lon, 5);
   renderCard(); document.dispatchEvent(new Event('placechange'));
   if (!$('tab-place').hidden) { $('pstartd').open = false; $('pcard').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  if (P.place.elev == null) fetchElev(P.place.lat, P.place.lon).then(e => { if (e != null && P.place) { P.place.elev = e; store.set('place', P.place); renderCard(); } }).catch(() => {});
   try {
     const n = await fetchNormals(P.place.lat, P.place.lon);
     if (P.place.elev == null && n.elev != null) P.place.elev = n.elev, store.set('place', P.place);
@@ -114,7 +129,7 @@ export function renderCard() {
   const nm = P.normals;
   const normals = nm === 'loading' ? '<span class="muted">looking up…</span>' : nm && nm !== 'error'
     ? `<b>${fmtT(nm.hi)}</b> high · <b>${fmtT(nm.lo)}</b> low <small class="muted">(average of the last ${nm.years} years, within a week of today’s date)</small>`
-    : '<span class="muted">unavailable right now (needs an internet connection)</span>';
+    : '<span class="muted">unavailable right now (needs an internet connection, or the free history service is busy; try again later)</span>';
   el.innerHTML = `
     <div class="kv"><span>Location</span><b>${Math.abs(pl.lat).toFixed(2)}°${pl.lat >= 0 ? 'N' : 'S'}, ${Math.abs(pl.lon).toFixed(2)}°${pl.lon >= 0 ? 'E' : 'W'}</b>
       <span>Elevation</span><b>${esc(fmtElev(pl.elev))}</b></div>
