@@ -242,3 +242,13 @@ ul.chk li.ok span:first-child{color:var(--ok)}ul.chk li.todo span:first-child{co
 #app.wide #picbtn{right:10px;top:52px}
 @media(max-width:800px){#widebtn{display:none}}
 #app.wide #maplegend{bottom:150px}
+
+/* time slider: a mark every 6 h under it, taller at local midnight and noon */
+.bar .sl{position:relative;flex:1;min-width:90px;padding-bottom:12px}
+.bar .sl input{width:100%;margin:0}
+#ticks{position:absolute;left:0;right:0;bottom:0;height:12px;pointer-events:none;font-size:9px;color:#fffa}
+#ticks i{position:absolute;top:0;width:1px;height:4px;background:#fff6}
+#ticks i.big{height:7px;background:#fffc}
+#ticks span{position:absolute;top:5px;transform:translateX(-50%);white-space:nowrap}
+#speed{background:#223;color:#fff;border:1px solid #fff3;border-radius:6px;padding:4px 6px;font-size:12px}
+#speed{flex:none;width:auto}

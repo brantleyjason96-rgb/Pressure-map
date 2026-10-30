@@ -150,3 +150,80 @@ def detect_fronts(theta, u, v, cfg=None, surface_hpa=None):
         parts.append(part)
         out += [{"t": kind, "g": round(strength, 3), "p": _thin(p)} for p in parts if len(p) >= 8]
     return out
+
+
+# ---- following fronts through time, so the loop shows ONE front moving instead of a new set of lines on every frame
+NPTS = 24                                                            # every line is resampled to this many points, so point i matches point i in the next frame
+
+
+def _unwrap(pts):
+    out = [list(pts[0])]
+    for la, lo in pts[1:]: out.append([la, out[-1][1] + (lo - out[-1][1] + 180) % 360 - 180])
+    return out
+
+
+def resample(pts, n=NPTS):
+    """n points evenly spaced along the line (arc length). Longitudes are unwrapped while measuring, then written back as -180..180."""
+    u = np.array(_unwrap(pts), dtype=float)
+    seg = np.hypot(np.diff(u[:, 0]) * 111, np.diff(u[:, 1]) * 111 * np.cos(np.radians((u[:-1, 0] + u[1:, 0]) / 2)))
+    s = np.concatenate([[0], np.cumsum(seg)])
+    if s[-1] <= 0: return [[round(float(u[0, 0]), 1), round(float(((u[0, 1] + 180) % 360) - 180), 1)]] * n
+    t = np.linspace(0, s[-1], n)
+    la, lo = np.interp(t, s, u[:, 0]), np.interp(t, s, u[:, 1])
+    return [[round(float(a), 1), round(float(((b + 180) % 360) - 180), 1)] for a, b in zip(la, lo)]
+
+
+def _mean_km(A, B):
+    a, b = np.array(A), np.array(B)
+    dl = (b[:, 1] - a[:, 1] + 180) % 360 - 180
+    return float(np.mean(np.hypot((b[:, 0] - a[:, 0]) * 111, dl * 111 * np.cos(np.radians((a[:, 0] + b[:, 0]) / 2)))))
+
+
+def _lerp(A, B, t):
+    out = []
+    for (la0, lo0), (la1, lo1) in zip(A, B):
+        lo = lo0 + ((lo1 - lo0 + 180) % 360 - 180) * t
+        out.append([round(la0 + (la1 - la0) * t, 1), round(((lo + 180) % 360) - 180, 1)])
+    return out
+
+
+def track_fronts(frames, match_km=500, max_gap=2, start_g=0.0, min_frames=3, prior=None):
+    """frames: a list (one per time step, oldest first) of front lists as returned by detect_fronts.
+    Returns the same shape with every front given an "id" that stays the same as it moves, and:
+      - hysteresis: a line weaker than start_g only survives if it continues a front already being followed
+      - gaps of up to max_gap frames are bridged by interpolating the line
+      - the front keeps one type (the commonest along its track), so it stops flipping between cold, warm and stationary
+      - a front that flickers on for fewer than min_frames frames in the middle of the record is dropped
+    prior: the already-tracked fronts (with ids) of the frame just BEFORE frames[0]; they are continued, keeping their ids. This lets the
+    teacher's forecast frames carry on from the public past frames without the public file ever being tracked using the future."""
+    n = len(frames); tracks = []; open_ = []                         # a track: {"pts": {frame: line}, "g": {...}, "t": [...], "last": frame, "id": n}
+    for f in prior or []:
+        tr = {"pts": {-1: f["p"]}, "g": {-1: f.get("g", 0)}, "t": [(f["t"], 1)], "last": -1, "id": f["id"]}; tracks.append(tr); open_.append(tr)
+    nid = max([f["id"] for f in prior or []] + [0])
+    for i, fl in enumerate(frames):
+        cands = [(resample(f["p"]), f) for f in fl]
+        pairs = sorted((_mean_km(tr["pts"][tr["last"]], c[0]), ti, ci) for ti, tr in enumerate(open_) for ci, c in enumerate(cands) if i - tr["last"] <= max_gap + 1)
+        pairs = [p for p in pairs if p[0] < match_km]
+        usedT, usedC = set(), set()
+        for d, ti, ci in pairs:
+            if ti in usedT or ci in usedC: continue
+            usedT.add(ti); usedC.add(ci); tr = open_[ti]
+            tr["pts"][i], tr["g"][i] = cands[ci][0], cands[ci][1].get("g", 0); tr["t"].append((cands[ci][1]["t"], len(cands[ci][0]))); tr["last"] = i
+        for ci, (line, f) in enumerate(cands):
+            if ci in usedC or f.get("g", 1) < start_g: continue
+            nid += 1; tr = {"pts": {i: line}, "g": {i: f.get("g", 0)}, "t": [(f["t"], 1)], "last": i, "id": nid}; tracks.append(tr); open_.append(tr)
+        open_ = [tr for tr in open_ if i - tr["last"] <= max_gap]
+    out = [[] for _ in range(n)]
+    for tr in tracks:
+        fs = sorted(tr["pts"])
+        if fs == [-1]: continue                                                      # a prior front with no continuation
+        if len(fs) < min_frames and fs[0] > 0 and fs[-1] < n - 1: continue         # a flicker, not a front (ends of the record may legitimately be short)
+        votes = {}
+        for t, w in tr["t"]: votes[t] = votes.get(t, 0) + w
+        kind = max(votes, key=votes.get)
+        for a, b in zip(fs[:-1], fs[1:]):                                            # bridge any gap
+            for j in range(a + 1, b):
+                tr["pts"][j] = _lerp(tr["pts"][a], tr["pts"][b], (j - a) / (b - a)); tr["g"][j] = (tr["g"][a] + tr["g"][b]) / 2
+        for j in sorted(tr["pts"]):
+            if j >= 0: out[j].append({"id": tr["id"], "t": kind, "g": round(float(tr["g"][j]), 3), "p": tr["pts"][j]})
+    return out

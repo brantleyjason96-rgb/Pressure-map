@@ -56,7 +56,7 @@ export function listFronts() {
     const type = frType(f); if (type === 'Trough') continue;
     for (const l of f.geometry.type === 'MultiLineString' ? f.geometry.coordinates : [f.geometry.coordinates]) out.push({ src: 'NOAA', type, pts: l.map(([x, y]) => [y, x]) });
   }
-  for (const f of (S.D.fr && S.D.fr[S.nPast - 1]) || []) out.push({ src: 'model', type: f.t, pts: f.p });
+  for (const f of (S.D.fr && S.D.fr[S.nPast - 1]) || []) out.push({ src: 'model', type: f.t, pts: f.p, id: f.id });
   for (const f of drawn.filter(f => f.t === key(S.nPast - 1))) out.push({ src: 'mine', type: f.type, pts: f.pts });
   return out;
 }

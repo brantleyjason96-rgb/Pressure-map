@@ -18,6 +18,8 @@ const STARTERS = [
 ];
 
 const now = () => S.nPast - 1;
+const at = h => S.hours.indexOf(h);                              // index of the frame h hours before now (frames are 3 h apart)
+const dayTicks = n => Array.from({ length: n }, (_, i) => i).filter(i => S.hours[i] % 24 === 0);   // -48, -24 and now
 const when = () => frameTime(now()).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'UTC' }) + ' UTC';
 const pinBtn = (topic, text) => `<button class="pinbtn" data-topic="${topic}" data-text="${esc(text)}">📌 Add to notes</button>`;
 export function pastSeries(pl = P.place) { // model analysis at the place for each past frame (never forecast)
@@ -95,8 +97,8 @@ function spark(vals, { fmt, color, cur, arrows }) {
   const X = i => pd + i * (W - 2 * pd) / (n - 1), Y = v => H - pd - (v - lo) / (hi - lo) * (H - 2 * pd);
   const pts = vals.map((v, i) => v == null ? null : [X(i), Y(v)]).filter(Boolean);
   let g = '';
-  [0, 4, 8].forEach(i => { if (i < n) g += `<line x1="${X(i)}" x2="${X(i)}" y1="0" y2="${H}" stroke="#fff2"/><text x="${Math.min(Math.max(X(i), 14), W - 14)}" y="${H + 12}" text-anchor="middle">${i === n - 1 ? 'now' : '−' + -S.hours[i] + ' h'}</text>`; });
-  if (arrows) vals.forEach((v, i) => { if (i % 2 === 0) g += `<text transform="translate(${X(i)} 12) rotate(${arrows[i]})" text-anchor="middle" class="arr">↓</text>`; });
+  dayTicks(n).forEach(i => { g += `<line x1="${X(i)}" x2="${X(i)}" y1="0" y2="${H}" stroke="#fff2"/><text x="${Math.min(Math.max(X(i), 14), W - 14)}" y="${H + 12}" text-anchor="middle">${i === n - 1 ? 'now' : '−' + -S.hours[i] + ' h'}</text>`; });
+  if (arrows) vals.forEach((v, i) => { if (S.hours[i] % 6 === 0) g += `<text transform="translate(${X(i)} 12) rotate(${arrows[i]})" text-anchor="middle" class="arr">↓</text>`; });
   return `<svg viewBox="0 0 ${W} ${H + 16}" class="spark"><text x="3" y="${arrows ? 26 : 10}" class="lab">${esc(fmt(hi))}</text><text x="3" y="${H - 2}" class="lab">${esc(fmt(lo))}</text>${g}` +
     `<polyline fill="none" stroke="${color}" stroke-width="2.2" points="${pts.map(p => p.join(',')).join(' ')}"/>` +
     (cur != null && vals[cur] != null ? `<circle cx="${X(cur)}" cy="${Y(vals[cur])}" r="4" fill="#fff" stroke="${color}" stroke-width="2"/>` : '') + '</svg>';
@@ -124,7 +126,7 @@ export function renderCard() {
   const el = $('pcard'), pl = P.place;
   $('pname').value = pl ? pl.name : ''; $('pname').disabled = !pl;
   if (!pl || !S.D) { el.innerHTML = '<p class="muted">Choose a place above to see what the model analysis says about it.</p>'; return; }
-  const ser = pastSeries(pl), n = now(), t = ser.t[n], p = ser.p[n], dp24 = p - ser.p[n - 4], dp6 = p - ser.p[n - 1];
+  const ser = pastSeries(pl), n = now(), t = ser.t[n], p = ser.p[n], dp24 = p - ser.p[at(-24)], dp6 = p - ser.p[at(-6)];
   const tend = Math.abs(dp24) < 1 ? 'steady' : dp24 > 0 ? 'rising' : 'falling';
   const nm = P.normals;
   const normals = nm === 'loading' ? '<span class="muted">looking up…</span>' : nm && nm !== 'error'
@@ -161,7 +163,7 @@ function chartsPNG() {
     let lo = Math.min(...vals), hi = Math.max(...vals); if (hi - lo < 1e-6) { hi += 1; lo -= 1; }
     const X = i => ox + 30 + i * (W - 40) / (n - 1), Y = v => oy + H - 18 - (v - lo) / (hi - lo) * (H - 38);
     return `<text x="${ox}" y="${oy + 4}" font-size="13" font-weight="700" fill="#111">${esc(title)}</text>` +
-      [0, 4, 8].map(i => `<line x1="${X(i)}" x2="${X(i)}" y1="${oy + 10}" y2="${oy + H - 18}" stroke="#ddd"/><text x="${X(i)}" y="${oy + H - 3}" font-size="10" text-anchor="middle" fill="#555">${i === n - 1 ? 'now' : '−' + -S.hours[i] + ' h'}</text>`).join('') +
+      dayTicks(n).map(i => `<line x1="${X(i)}" x2="${X(i)}" y1="${oy + 10}" y2="${oy + H - 18}" stroke="#ddd"/><text x="${X(i)}" y="${oy + H - 3}" font-size="10" text-anchor="middle" fill="#555">${i === n - 1 ? 'now' : '−' + -S.hours[i] + ' h'}</text>`).join('') +
       `<text x="${ox}" y="${oy + 22}" font-size="10" fill="#111">${esc(fmt(hi))}</text><text x="${ox}" y="${oy + H - 20}" font-size="10" fill="#111">${esc(fmt(lo))}</text>` +
       `<polyline fill="none" stroke="${col}" stroke-width="2.5" points="${vals.map((v, i) => X(i) + ',' + Y(v)).join(' ')}"/><circle cx="${X(n - 1)}" cy="${Y(vals[n - 1])}" r="4" fill="${col}"/>`;
   };

@@ -1,7 +1,8 @@
 // "My 3-day forecast plan": a place for the student to write down THEIR forecast, one card per day, so the slides can be built from it.
 // It holds only what the student types. Nothing here comes from the model forecast. Temperatures are stored in °C and speeds in m/s.
-import { $, esc, store, tempOut, tempIn, tUnit, spdOut, spdIn, sUnit, compass8 } from './util.js';
+import { $, esc, store, tempOut, tempIn, tUnit, spdOut, spdIn, sUnit, compass8, fmtD } from './util.js';
 import { P } from './place.js';
+import { projectionDay, speedNotes } from './predict.js';
 
 const DIRS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 const SKY = ['Clear', 'Partly cloudy', 'Mostly cloudy', 'Overcast'];
@@ -69,6 +70,17 @@ export function planFlags() {   // gentle "do these fit together?" nudges, not e
     if (d.prec && d.prec !== 'None' && d.sky === 'Clear') f.push(`Day ${n}: rain or snow does not fit with a clear sky.`);
     if (d.trend === 'Falling' && d.sky === 'Clear') f.push(`Day ${n}: pressure is falling but the sky is clear. Falling pressure usually brings clouds.`);
   });
+  // does the written plan fit the student's OWN projection (Predict tab)? Gentle questions, never answers
+  const pl = P.place;
+  D.forEach((d, i) => { const n = i + 1, near = projectionDay(n); if (!near.length) return;
+    const wet = near.filter(x => x.kind !== 'H' && x.km < 300), hiNear = near.filter(x => x.kind === 'H' && x.km < 300), c = x => `${x.word} within ${fmtD(x.km)} of ${pl.name}`, front = near.find(x => x.kind === 'front' && x.type === 'Cold Front' && x.km < 100);
+    if (wet.length && d.sky === 'Clear') f.push(`Day ${n}: your projection has a ${c(wet[0])}, but the sky is Clear. Does that fit?`);
+    if (wet.length && d.prec === 'None' && wet[0].km < 150) f.push(`Day ${n}: your projection has a ${c(wet[0])}, but no rain or snow. Is that what you expect?`);
+    if (hiNear.length && !wet.length && d.prec && d.prec !== 'None' && d.sky && d.sky !== 'Overcast') f.push(`Day ${n}: your projection has a ${c(hiNear[0])} and nothing wet nearby. Highs usually bring dry weather. Why rain or snow?`);
+    const prev = i ? D[i - 1] : null;
+    if (front && prev && prev.hi != null && d.hi != null && d.hi >= prev.hi) f.push(`Day ${n}: your projection has a cold front reaching ${pl.name}, but the high is not lower than Day ${n - 1}. A cold front usually makes it cooler.`);
+  });
+  speedNotes().forEach(x => f.push(`Projection: ${x.note}`));
   if (D.every(d => d.hi != null && d.sky && d.prec && d.wdir && d.trend) && ['hi', 'lo', 'sky', 'prec', 'wdir', 'trend'].every(k => D.every(d => d[k] === D[0][k]))) f.push('All three days look the same. Will anything change as the systems move?');
   return f;
 }

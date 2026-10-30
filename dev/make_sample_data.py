@@ -4,7 +4,7 @@ import base64, gzip, json, os
 import datetime, sys
 import numpy as np
 sys.path.insert(0, '.')
-from frontfind import detect_fronts
+from frontfind import detect_fronts, track_fronts
 
 T0 = datetime.datetime.now(datetime.timezone.utc).replace(minute=0, second=0, microsecond=0)
 T0 = T0.replace(hour=T0.hour // 6 * 6) - datetime.timedelta(hours=6)
@@ -13,7 +13,7 @@ LAT0, LON0, D = -90, -180, 2
 lat = np.arange(-90, 91, D)[:, None] * np.ones((1, 181))
 lon = np.ones((91, 1)) * np.arange(-180, 181, D)[None, :]
 K = np.pi / 180
-PAST, FUTURE = list(range(-48, 1, 6)), list(range(6, 97, 6))
+PAST, FUTURE = list(range(-48, 1, 3)), list(range(3, 97, 3))     # 3-hourly, like gfs_to_json.py
 # (lat, lon at hour 0, deg east per hour, deg north per hour, hPa amplitude, radius deg)  - negative amp = low
 SYSTEMS = [(48, -92, .33, .05, -26, 11), (43, -140, .30, .03, -20, 10), (55, -30, .25, .06, -30, 13), (35, 150, .35, .02, -17, 10),
            (36, -125, .08, -.02, 20, 14), (33, -45, .05, 0, 18, 15), (52, -108, -.05, -.05, 16, 9), (-45, 60, .4, 0, -24, 12),
@@ -98,25 +98,31 @@ def front_fields(h):
     return th, u, v
 
 
-def fronts(hours):
-    return [detect_fronts(*front_fields(h)) for h in hours]
+SAMPLE_CFG = dict(grad_min=0.015, min_km=900, lat_lo=15)     # the synthetic fronts are gentler than real ones
+
+
+def fronts(hours, prior=None):
+    return track_fronts([detect_fronts(*front_fields(h), cfg=SAMPLE_CFG) for h in hours], start_g=0.02, prior=prior)
 
 
 def pack(hours):
     fr = [frame(h) for h in hours]
+    for h, f in zip(hours, fr):
+        if h % 6: f["pr"] = None            # like the real data: no 6-h rain total between cycles, the map fills it in
     return {k: [f[k] for f in fr] for k in fr[0]}
 
 
 t0 = T0
 grid = {"lat0": LAT0, "lon0": LON0, "d": D}
 os.makedirs("data", exist_ok=True)
-json.dump({"cycle": t0.isoformat(), "hours": PAST, **grid, "sample": True, "sst": make_sst(), "fr": fronts(PAST), "f": pack(PAST)}, open("data/pressure.json", "w"), separators=(",", ":"))
+PAST_FR = fronts(PAST)
+json.dump({"cycle": t0.isoformat(), "hours": PAST, **grid, "sample": True, "sst": make_sst(), "fr": PAST_FR, "f": pack(PAST)}, open("data/pressure.json", "w"), separators=(",", ":"))
 print("wrote data/pressure.json (SAMPLE)")
 try:
     from cryptography.hazmat.primitives import hashes
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-    plain = gzip.compress(json.dumps({"cycle": t0.isoformat(), "hours": FUTURE, **grid, "fr": fronts(FUTURE), "f": pack(FUTURE)}, separators=(",", ":")).encode())
+    plain = gzip.compress(json.dumps({"cycle": t0.isoformat(), "hours": FUTURE, **grid, "fr": fronts(FUTURE, PAST_FR[-1]), "f": pack(FUTURE)}, separators=(",", ":")).encode())
     salt, iv, iters = os.urandom(16), os.urandom(12), 250000
     key = PBKDF2HMAC(hashes.SHA256(), 32, salt, iters).derive(b"sample")
     b = lambda x: base64.b64encode(x).decode()

@@ -1,19 +1,21 @@
 """Fetch NOAA GFS data and write the files the map loads.
 
-data/pressure.json   PUBLIC, students load it. Holds ONLY the past: the model analysis (f000) of the last 9 six-hourly
-                     cycles (-48 h .. now), global, thinned to 2 degrees. Nothing in it is a forecast; the script refuses
-                     to write it if any frame is later than the newest cycle.
-data/teacher.enc     OPTIONAL. The 6-h .. 96-h forecast, gzipped and encrypted with AES-GCM under the passphrase in the
+data/pressure.json   PUBLIC, students load it. Holds ONLY the past: every 3 hours from -48 h to now (17 frames), global, thinned to 2
+                     degrees. Frames on the 6-hourly cycles are the model analysis (f000); the frames between are the 3-hour model
+                     forecast of the cycle before, which is valid at a time that has already happened. Nothing in it is later than
+                     "now"; the script refuses to write it otherwise. Fronts are followed from frame to frame (an "id" per front).
+data/teacher.enc     OPTIONAL. The 3-h .. 96-h forecast, gzipped and encrypted with AES-GCM under the passphrase in the
                      TEACHER_PASSWORD environment variable. Only written when that variable is set.
 
 Needs: pygrib numpy cryptography; frontfind.py (in this folder) finds the fronts (cryptography only for the teacher file)."""
 import base64, gzip, json, os, tempfile, urllib.request, urllib.error
 from datetime import datetime, timedelta, timezone
 import numpy as np, pygrib
-from frontfind import detect_fronts, theta_e
+from frontfind import detect_fronts, theta_e, track_fronts, DEFAULT
 
-PAST = list(range(-48, 1, 6))      # hours relative to the newest cycle; 0 = newest analysis
-FUTURE = list(range(6, 97, 6))     # teacher file only (96 h so Day 3 is covered whenever the cycle is a few hours old)
+STEP = 3                           # hours between frames; smaller steps make fronts and pressure centers glide instead of jump
+PAST = list(range(-48, 1, STEP))   # hours relative to the newest cycle; 0 = newest analysis
+FUTURE = list(range(STEP, 97, STEP))   # teacher file only (96 h so Day 3 is covered whenever the cycle is a few hours old)
 ALL_VARS = "var_PRMSL=on&var_APCP=on&var_HGT=on&var_UGRD=on&var_VGRD=on&var_TMP=on&var_DPT=on&var_LAND=on&var_ICEC=on&var_RH=on&var_PRES=on"
 LEVELS = "lev_mean_sea_level=on&lev_surface=on&lev_500_mb=on&lev_850_mb=on&lev_10_m_above_ground=on&lev_2_m_above_ground=on"
 KEYS = {("prmsl", 0): "p", ("gh", 500): "z5", ("u", 500): "u5", ("v", 500): "v5", ("2t", 2): "t2", ("2d", 2): "d2",
@@ -83,12 +85,17 @@ def front_settings():
 FRONT_CFG = front_settings()
 
 
+START_G = FRONT_CFG.get("grad_min", DEFAULT["grad_min"]) * 0.9     # a front must be this strong to START being followed...
+CFG_LOOSE = {**FRONT_CFG, "grad_min": FRONT_CFG.get("grad_min", DEFAULT["grad_min"]) * 0.7}   # ...but is found down to 70% of that so it is not lost when it weakens
+
+
 def fronts_for(r):
-    """Fronts found from the 850 mb fields of one frame (1-degree grid). [] if NOAA's file lacked those fields."""
+    """Fronts found from the 850 mb fields of one frame (1-degree grid), with a looser threshold than a front needs to start.
+    Run track_fronts over all the frames afterwards. [] if NOAA's file lacked those fields."""
     if not all(k in r for k in ("t850", "r850", "u850", "v850")): return []
     th = theta_e(r["t850"], r["r850"], 850.0)
     sp = r["sp"] / 100 if "sp" in r else None                         # hPa; None if NOAA's file lacked it (then no ground mask)
-    return detect_fronts(np.where(np.isfinite(th), th, np.nanmean(th)), r["u850"], r["v850"], FRONT_CFG, surface_hpa=sp)
+    return detect_fronts(np.where(np.isfinite(th), th, np.nanmean(th)), r["u850"], r["v850"], CFG_LOOSE, surface_hpa=sp)
 
 
 def fields_for(r, pr):
@@ -137,14 +144,19 @@ def main():
         t0 = (now - timedelta(hours=back)).replace(minute=0, second=0, microsecond=0)
         t0 = t0.replace(hour=t0.hour // 6 * 6)
         try:
-            # past frame at hour h = analysis of the cycle at t0+h; its 6-h rain = f006 of the cycle 6 h earlier (valid at t0+h)
+            # a frame at a cycle time (hour h a multiple of 6) = that cycle's analysis, and its 6-h rain = f006 of the cycle 6 h earlier.
+            # a frame between cycles = f003 of the cycle 3 h earlier (valid at t0+h, already in the past); it has no 6-h rain total, so
+            # its rain is None here and the map fills it in from the frames either side.
             past, past_fr = [], []
             for h in PAST:
                 tv = t0 + timedelta(hours=h)
-                r = fetch(tv, 0)
+                if h % 6 == 0:
+                    r = fetch(tv, 0); rain = fetch(tv - timedelta(hours=6), 6, precip_only=True).get("pr")
+                else:
+                    r = fetch(tv - timedelta(hours=3), 3); rain = None
                 if h == 0: raw0 = r
-                rain = fetch(tv - timedelta(hours=6), 6, precip_only=True).get("pr")
                 past.append(fields_for(r, rain)); past_fr.append(fronts_for(r))
+            past_fr = track_fronts(past_fr, start_g=START_G)
             break
         except urllib.error.URLError:
             continue
@@ -170,7 +182,8 @@ def main():
         fut, fut_fr = [], []
         for h in FUTURE:
             r = fetch(t0, h)
-            fut.append(fields_for(r, r.get("pr"))); fut_fr.append(fronts_for(r))
+            fut.append(fields_for(r, r.get("pr") if h % 6 == 0 else None)); fut_fr.append(fronts_for(r))
+        fut_fr = track_fronts(fut_fr, start_g=START_G, prior=past_fr[-1])      # carries on from the public frames, same ids
         plain = gzip.compress(json.dumps({"cycle": t0.isoformat(), "hours": FUTURE, **grid, "fr": fut_fr, "f": collect(fut)},
                                          separators=(",", ":")).encode())
         salt, iv, iters = os.urandom(16), os.urandom(12), 250000

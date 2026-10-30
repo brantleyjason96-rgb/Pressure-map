@@ -4,6 +4,7 @@ import { $, esc, fmtT, fmtS, fmtRain, compass, windFrom } from './util.js';
 import { P } from './place.js';
 import { TOPICS } from './notes.js';
 import { S, addForecast, sample, frameTime } from './data.js';
+import { initTime } from './mapview.js';
 import { servicePlaceholder, fillServices, loadForecasterCharts, frontCheckHTML } from './services.js';
 
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
@@ -21,6 +22,7 @@ export function modelDays(lat, lon) {
   const off = lon / 15 * 3600e3, key = t => new Date(t.getTime() + off).toISOString().slice(0, 10), today = Date.now();
   const days = [0, 1, 2].map(k => ({ date: key(new Date(today + (k + 1) * 864e5)), t: [], spd: [], pr: [], p: [] }));
   for (let i = S.nPast; i < S.hours.length; i++) {
+    if (S.hours[i] % 6) continue;                                   // the 6-h rain totals are only real on the 6-hourly frames
     const d = days.find(x => x.date === key(frameTime(i))); if (!d) continue;
     const f = k => sample(S.D.f[k][i], lat, lon);
     d.t.push(f('t')); d.spd.push(Math.hypot(f('u'), f('v'))); d.pr.push(f('pr') || 0); d.p.push(f('p'));
@@ -32,7 +34,7 @@ const MODEL_NOTE = 'Approximate: from 6-hourly model values at a ~200 km grid, s
 
 function detail(lat, lon) { // every 6-hourly forecast frame at the place, in the place's local time
   const off = lon / 15 * 3600e3;
-  return S.hours.map((h, i) => i).filter(i => i >= S.nPast).map(i => {
+  return S.hours.map((h, i) => i).filter(i => i >= S.nPast && S.hours[i] % 6 === 0).map(i => {
     const f = k => sample(S.D.f[k][i], lat, lon), u = f('u'), v = f('v'), loc = new Date(frameTime(i).getTime() + off);
     return `<tr><td>${loc.toLocaleString([], { weekday: 'short', hour: 'numeric', timeZone: 'UTC' })}</td><td>${fmtT(f('t'))}</td><td>${fmtT(f('d'))}</td><td>${Math.round(f('p'))}</td><td>${compass(windFrom(u, v))} ${fmtS(Math.hypot(u, v))}</td><td>${fmtRain(f('pr') || 0)}</td></tr>`;
   }).join('');
@@ -74,7 +76,7 @@ export function initTeacher() {
     try { addForecast(await decrypt($('tpw').value)); } catch (err) {
       $('terr').textContent = err.message === 'missing' ? 'Teacher view is not set up on this site yet (no teacher.enc file).' : 'That passphrase did not work.'; return;
     }
-    close(); document.body.classList.add('teacher'); $('slider').max = S.hours.length - 1; $('tbtn').hidden = true;
+    close(); document.body.classList.add('teacher'); initTime(); $('tbtn').hidden = true;
     loadForecasterCharts().then(d => { chartsNote = d.length ? `Forecaster-drawn fronts for ${d.join(', ')} are shown on the matching forecast days of the map (one chart per day) when “Fronts drawn by NOAA forecasters” is checked.` : 'No forecaster charts for coming days were available.'; if ($('tcharts')) $('tcharts').textContent = chartsNote; })
       .catch(() => { chartsNote = 'Forecaster charts could not be loaded.'; if ($('tcharts')) $('tcharts').textContent = chartsNote; });
     renderTeacher(); document.querySelector('[data-tab="teacher"]').hidden = false; document.querySelector('[data-tab="teacher"]').click();

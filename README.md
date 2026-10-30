@@ -4,7 +4,7 @@ A map for the 8th grade Earth Science final project. Each student picks a place 
 from the information on the map: highs and lows, fronts, land/sea breeze, windward/leeward, and ocean currents.
 
 ## Students never get a forecast
-- The public file `data/pressure.json` holds **only the past**: the model analysis of the last 48 hours, up to now.
+- The public file `data/pressure.json` holds **only the past**: a frame every 3 hours for the last 48 hours, up to now (the 6-hourly ones are the model analysis; the ones between are the 3-hour model forecast of the cycle before, valid at a time that has already happened).
   `gfs_to_json.py` refuses to write it if any frame is later than the newest model cycle.
 - Place pages show the present, the past 48 hours, and the normal high/low for the time of year (an average of the last 15 years).
 - The forecast itself is published only as `data/teacher.enc`, encrypted with a passphrase.
@@ -88,6 +88,17 @@ system is from their place at +24, +48 and +72 hours and when a front would reac
   collapse. Arrow keys move between tabs.
 - **Help** (❓) explains the five steps and opens on a student's first visit.
 - **Version.** The footer of the panel shows which version is live (the commit and publish time are stamped in by the workflow).
+
+## Smooth time, and following fronts
+- The slider is continuous (`S.t`, in hours): shading, wind and isobars are blended between the two surrounding frames, and Highs, Lows and fronts glide along their tracks. Play is a time-based animation with a speed menu. Arrow keys on the slider jump one 3-hour frame.
+- `frontfind.track_fronts` follows each computer-found front from frame to frame (stable `id`, same 24 points per line, a front is found down to 70% of the strength it needed to start, 1-2 frame gaps are bridged, one type per front). A front that starts or stops fades over one frame instead of popping. NOAA's hand-drawn chart is only valid for "now", so it fades out over the first 3 hours back.
+- The 6-hour rain total only exists on the 6-hourly frames; the frames between get the average of their neighbours when the data loads.
+
+## Prediction aids (past data only)
+- **Changes** view: shading of pressure or temperature change over the last 24 hours (falling pressure = something is approaching).
+- **Ghosts**: faint H, L and fronts as they were 12 and 24 hours ago, with an arrow to where they are now.
+- **Predict tab**: computer-found fronts come with a measured speed and direction; every item has an *Evidence* box (is it speeding up or slowing down, the 500 mb wind direction and speed there, typical speeds), a gentle warning when a speed is far beyond typical, Day 1/2/3 buttons, and an uncertainty cone (15% of the distance travelled).
+- **Check my work** compares the written plan with the student's own projection (for example a Low projected close to the place on a day the plan calls Clear).
 
 ## Student notes
 Students present their forecast themselves. The **My Notes** tab has a **3-day forecast plan** (one card per day: high and low, sky, rain or snow and chance, wind, pressure trend, a reason, and the biggest uncertainty) with a rules-of-thumb guide for getting the numbers. It holds only what the student types, never the model forecast, and it prints and saves with their work. Below it, the tab collects evidence by topic

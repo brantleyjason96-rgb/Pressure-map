@@ -1,6 +1,6 @@
 import { $, U, setUnits, store } from './util.js';
 import { S, loadData } from './data.js';
-import { initMap, setFrame, loadFronts, view, redraw } from './mapview.js';
+import { initMap, setFrame, initTime, loadFronts, view, redraw } from './mapview.js';
 import { initPlace, P } from './place.js';
 import { initNotes } from './notes.js';
 import { initTeacher } from './teacher.js';
@@ -31,7 +31,7 @@ initShell();
 (async () => {
   try {
     const D = await loadData();
-    $('slider').max = S.hours.length - 1;
+    initTime();
     $('st').textContent = 'Model analysis through ' + new Date(Date.parse(D.cycle)).toUTCString().slice(5, 22) + ' UTC';
     if (D.sample) $('samplebanner').hidden = false;
     initQuiz(); initPlace(); initNotes(); initPlanner(); initTerrain(); initCoast(); initCurrents(); initTools(); initPredict();

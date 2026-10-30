@@ -2,7 +2,7 @@
 import sys
 import numpy as np
 sys.path.insert(0, ".")
-from frontfind import detect_fronts, theta_e
+from frontfind import detect_fronts, theta_e, track_fronts, resample
 
 lat = np.arange(-90, 91)[:, None] * np.ones((1, 360)); lon = np.ones((181, 1)) * np.arange(360)[None, :]
 fails = 0
@@ -61,6 +61,27 @@ with_rule, without_rule = band(detect_fronts(two, u0, v0, {**loose, "curvature":
 ok(len(with_rule) == 2 and len(without_rule) == 3, f"curvature rule drops the weak minimum between two fronts ({len(without_rule)} lines -> {len(with_rule)})")
 ok(all("g" in f and f["g"] > 0 for f in with_rule), "each front reports its strength")
 ok(detect_fronts(step_field(45, 120), u0, v0, {**CFG, "strong_min": 0.5}) == [], "strong_min filters out fronts that are not strong enough")
+
+# ---- tracking: one front that moves 3 degrees east per frame keeps one id; a one-frame dropout is bridged; a one-frame flicker is dropped
+mv = [run(45, 100 + 3 * k, 10.0) for k in range(6)]
+tk = track_fronts(mv)
+ids = {f["id"] for fl in tk for f in fl}
+ok(len(ids) == 1 and all(len(fl) == 1 for fl in tk), f"a moving front keeps one id through 6 frames (ids {sorted(ids)})")
+ok(all(len(f["p"]) == 24 for fl in tk for f in fl), "every tracked line has 24 points")
+gap = [list(fl) for fl in mv]; gap[2] = []
+tg = track_fronts(gap)
+ok(all(len(fl) == 1 for fl in tg) and len({f["id"] for fl in tg for f in fl}) == 1, "a front missing for one frame is bridged with the same id")
+fl = [list(x) for x in mv]; fl[3] = fl[3] + run(-45, 300, 10.0)
+tf = track_fronts(fl, min_frames=3)
+ok(all(len(x) == 1 for x in tf), "a line seen in only one middle frame is dropped as a flicker")
+mix = [run(45, 100, 10.0), run(45, 103, -10.0), run(45, 106, 10.0), run(45, 109, 10.0)]
+tm = track_fronts(mix)
+ok(len({f["t"] for x in tm for f in x}) == 1, "a front whose type flips for one frame keeps a single type")
+weak_start = [{"t": "Cold Front", "g": 0.01, "p": mv[0][0]["p"]}]
+ok(track_fronts([weak_start], start_g=0.02) == [[]], "a weak line cannot start a front")
+dl = resample([[10, 170], [12, -170]]); ok(all(abs((b[1] - a[1] + 180) % 360 - 180) < 2 for a, b in zip(dl[:-1], dl[1:])), "resampling across the date line stays evenly spaced")
+pa = track_fronts(mv[:3]); pb = track_fronts(mv[3:], prior=pa[-1])
+ok(all(len(x) == 1 and x[0]["id"] == pa[0][0]["id"] for x in pa + pb), "forecast frames continue the ids of the past frames (seeded with prior)")
 # theta_e is sensible: warmer and wetter air has higher theta_e
 a, b = theta_e(np.array([283.0]), np.array([40.0])), theta_e(np.array([283.0]), np.array([90.0])); c = theta_e(np.array([290.0]), np.array([90.0]))
 ok(300 < a[0] < 320 and b > a and c > b, f"theta_e rises with moisture and temperature ({a[0]:.1f}, {b[0]:.1f}, {c[0]:.1f} K)")
